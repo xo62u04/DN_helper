@@ -25,6 +25,7 @@
 <div class="wrap">
 
   <div id="notice"></div>
+  <div id="sync"></div>
 
   <div class="panel">
     <h2>設定</h2>
@@ -91,12 +92,11 @@
       <button onclick="doExportMine()">只匯出這個人</button>
       <button onclick="doMerge()">合併貼上的人</button>
       <button onclick="doImportAll()">整份匯入（覆蓋）</button>
-      <button onclick="loadRepo()">讀取 git 上的 data/roster.json</button>
     </div>
     <textarea id="io" placeholder="JSON 會出現在這裡，或把別人給你的 JSON 貼進來再按上面的按鈕"></textarea>
     <p class="hint">
-      流程：每個人在自己電腦填好 → 按「只匯出這個人」→ 把 JSON 給團長 → 團長按「合併貼上的人」→
-      再「匯出全部」存成 <code>data/roster.json</code> commit 進 git。其他人開頁面按「讀取 git 上的…」就同步到最新。
+      平常同步靠上面的「雲端存檔」就好，這一區是備援：想備份一份、或有人不方便設權杖時，
+      用「只匯出這個人」把 JSON 傳給團長，團長按「合併貼上的人」再上傳。
     </p>
   </div>
 
@@ -122,7 +122,7 @@ function syncCfg(){
   document.getElementById(id).addEventListener('change', e=>{
     if(id==='resetDay') DB.cfg.resetDay = +e.target.value;
     else DB.cfg[id] = e.target.checked;
-    saveDB(); syncCfg(); renderRoster();
+    touchMeta(); saveDB(); syncCfg(); renderRoster();
   });
 });
 
@@ -209,7 +209,7 @@ function onRoster(e, quiet){
   else if(a==='delc') p.chars=p.chars.filter(x=>x!==c);
   else return;
 
-  saveDB();
+  saveDB(p);
   if(quiet) return;          // 打字時不要整個重畫，會失焦
   renderRoster();
 }
@@ -219,6 +219,7 @@ function addChar(pid){
   const inp=document.querySelector('input[data-a="newc"][data-p="'+pid+'"]');
   const name=inp.value.trim(); if(!name) return inp.focus();
   const t=DB.gear.tiers[DB.gear.tiers.length-1].k;
+  touchPerson(p);
   p.chars.push({id:nid(), name, job:DB.jobs.some(j=>j.name===name)?name:'', elem:'', carry:true, active:true,
                 atk:0,crit:0,def:0,fd:0, mwTier:t,mwEnh:0, swTier:t,swEnh:0, aTier:t,aEnh:0});
   if(!DB.jobs.some(j=>j.name===name)) DB.jobs.push({name, base:'', elem:'', role:'', buffs:[], pct:0, note:''});
@@ -271,13 +272,13 @@ function onJob(e){
     j.name=nw;
   }
   else j[f]=e.target.value;
-  saveDB(); renderJobs(); renderRoster();
+  touchMeta(); saveDB(); renderJobs(); renderRoster();
 }
 function addJob(){
   const inp=document.getElementById('newJob');
   const name=inp.value.trim(); if(!name) return inp.focus();
   DB.jobs.push({name, base:'', elem:'', role:'', buffs:[], pct:0, note:''});
-  inp.value=''; saveDB(); renderJobs(); renderRoster();
+  inp.value=''; touchMeta(); saveDB(); renderJobs(); renderRoster();
 }
 
 /* ---------- 裝等 ---------- */
@@ -301,18 +302,18 @@ function onTier(e){
       ['mwTier','swTier','aTier'].forEach(x=>{ if(c[x]===old) c[x]=nw; });
     }));
   } else DB.gear.tiers[i].v=+e.target.value||0;
-  saveDB(); renderTiers(); renderRoster();
+  touchMeta(); saveDB(); renderTiers(); renderRoster();
 }
 function addTier(){
   const k=document.getElementById('newTier').value.trim(); if(!k) return;
   DB.gear.tiers.push({k, v:+document.getElementById('newTierVal').value||0});
   document.getElementById('newTier').value='';
-  saveDB(); renderTiers(); renderRoster();
+  touchMeta(); saveDB(); renderTiers(); renderRoster();
 }
 function setGear(){
   DB.gear.wPer=+document.getElementById('wPer').value||0;
   DB.gear.aPer=+document.getElementById('aPer').value||0;
-  saveDB(); renderRoster();
+  touchMeta(); saveDB(); renderRoster();
 }
 
 /* ---------- 資料交換 ---------- */
@@ -328,16 +329,9 @@ function doMerge(){
   try{ const n=mergePerson(io().value); redraw(); alert('合併了 '+n+' 個人'); }
   catch(e){ alert('JSON 有問題：'+e.message); }
 }
-async function loadRepo(){
-  const txt=await fetchRepoRoster();
-  if(!txt){ alert('讀不到 data/roster.json。\n用 file:// 直接開檔會被瀏覽器擋，要放到 GitHub Pages 之類的 http(s) 網址才讀得到。'); return; }
-  if(!confirm('用 git 上的名單覆蓋你本機這份？')) return;
-  try{ importJSON(txt); redraw(); alert('已同步 git 上的名單'); }
-  catch(e){ alert('roster.json 有問題：'+e.message); }
-}
-
 function redraw(){ syncCfg(); renderRoster(); renderJobs(); renderTiers(); }
 redraw();
+mountSync(redraw);
 </script>
 </body>
 </html>

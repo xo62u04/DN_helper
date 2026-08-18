@@ -58,6 +58,7 @@
 
 <div class="wrap">
   <div id="notice"></div>
+  <div id="sync"></div>
   <div class="cols">
 
     <div class="panel">
@@ -144,9 +145,9 @@ function onRoster(e){
   else if(a==='potion') p.potion=Math.max(0,+t.value||0);
   else if(a==='cactive'&&c) c.active=t.checked;
   else return;
-  saveDB(); renderRoster(); renderTeams();
+  saveDB(p); renderRoster(); renderTeams();
 }
-function setAllFree(v){ DB.people.forEach(p=>p.free=v); saveDB(); renderRoster(); }
+function setAllFree(v){ DB.people.forEach(function(p){ p.free=v; touchPerson(p); }); saveDB(); renderRoster(); }
 function syncCfgUI(){
   document.getElementById('mode').value=DB.cfg.mode||'save';
   document.getElementById('teamSize').value=DB.cfg.teamSize;
@@ -160,7 +161,7 @@ function setCfg(){
   DB.cfg.minCarry=Math.max(0,+document.getElementById('minCarry').value||0);
   DB.cfg.autoFill=document.getElementById('autoFill').checked;
   DB.cfg.balance=document.getElementById('balance').checked;
-  saveDB(); renderTeams();
+  touchMeta(); saveDB(); renderTeams();
 }
 
 /* ---------------- 演算法 ---------------- */
@@ -437,6 +438,7 @@ function renderTeams(){
 
 syncCfgUI(); renderRoster();
 if(teams.length){ normalize(teams); renderTeams(); } else run();
+mountSync(function(){ renderRoster(); renderTeams(); });
 </script>
 </body>
 </html>

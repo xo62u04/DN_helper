@@ -5,6 +5,7 @@
       "active": true,
       "free": true,
       "potion": 1,
+      "t": 0,
       "chars": [
         {
           "name": "護士",
@@ -64,6 +65,7 @@
       "active": true,
       "free": true,
       "potion": 1,
+      "t": 0,
       "chars": [
         {
           "name": "毀滅",
@@ -106,6 +108,7 @@
       "active": true,
       "free": true,
       "potion": 1,
+      "t": 0,
       "chars": [
         {
           "name": "時空",
@@ -131,6 +134,7 @@
       "active": true,
       "free": true,
       "potion": 1,
+      "t": 0,
       "chars": [
         {
           "name": "劍鬥",
@@ -173,6 +177,7 @@
       "active": true,
       "free": true,
       "potion": 1,
+      "t": 0,
       "chars": [
         {
           "name": "天弓",
@@ -384,5 +389,8 @@
     "useFd": true,
     "useCrit": false,
     "sameElem": true
+  },
+  "meta": {
+    "t": 0
   }
 }

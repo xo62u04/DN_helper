@@ -36,6 +36,7 @@
 
 <div class="wrap">
   <div id="notice"></div>
+  <div id="sync"></div>
 
   <div class="panel">
     <h2>本週通關紀錄</h2>
@@ -68,7 +69,7 @@ document.getElementById('curweek').textContent = curWeek()+' 起';
 document.getElementById('rd').textContent = WD[DB.cfg.resetDay];
 document.getElementById('sameElem').checked = DB.cfg.sameElem;
 document.getElementById('sameElem').addEventListener('change', e=>{
-  DB.cfg.sameElem=e.target.checked; saveDB(); genAll();
+  DB.cfg.sameElem=e.target.checked; touchMeta(); saveDB(); genAll();
 });
 document.getElementById('notice').innerHTML = storageOK ? ''
   : '<div class="msg warn">這個開啟方式不能存檔（localStorage 被停用），勾的紀錄關掉就沒了。</div>';
@@ -271,6 +272,7 @@ document.getElementById('out').addEventListener('change', function(e){
 });
 
 renderMatrix(); genAll();
+mountSync(function(){ renderMatrix(); genAll(); });
 </script>
 </body>
 </html>

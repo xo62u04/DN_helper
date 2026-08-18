@@ -53,7 +53,8 @@ function defaultDB(){
     gear:{ tiers:[{k:'50S',v:100},{k:'50L',v:130},{k:'60B',v:170},{k:'60A',v:210},{k:'70A',v:260}],
            wPer:12, aPer:5 },
     cfg:{ mode:'save', teamSize:4, minCarry:2, autoFill:true, balance:true,
-          resetDay:4, useFd:true, useCrit:false, sameElem:true }
+          resetDay:4, useFd:true, useCrit:false, sameElem:true },
+    meta:{ t:0 }
   };
 }
 
@@ -70,6 +71,7 @@ function normChar(c){
 }
 function normPerson(p){
   p.id=nid(); p.active=p.active!==false; p.free=p.free!==false; p.potion=p.potion??1;
+  p.t=+p.t||0;
   p.chars=(p.chars||[]).map(normChar);
   return p;
 }
@@ -83,6 +85,7 @@ function mergeDefaults(s){
   s.clears   = s.clears && typeof s.clears==='object' ? s.clears : {};
   s.gear     = s.gear&&Array.isArray(s.gear.tiers)&&s.gear.tiers.length ? s.gear : d.gear;
   s.cfg      = Object.assign(d.cfg, s.cfg||{});
+  s.meta     = s.meta && typeof s.meta==='object' ? s.meta : {t:0};
   return s;
 }
 function loadDB(){
@@ -102,7 +105,16 @@ function loadDB(){
   return defaultDB();
 }
 let DB = loadDB();
-const saveDB = () => { LS.set(DBKEY, JSON.stringify(DB)); POWCACHE=null; };
+// saveDB(person) —— 有帶成員時順便蓋上時間戳，多人合併時才知道誰改得比較晚。
+// 改到職業庫／副本／裝等／設定這種全域資料時要另外呼叫 touchMeta()。
+function saveDB(person){
+  if(person) touchPerson(person);
+  DB.meta = DB.meta||{t:0};
+  LS.set(DBKEY, JSON.stringify(DB));
+  POWCACHE=null;
+  if(typeof Sync!=='undefined' && Sync.markDirty) Sync.markDirty();
+}
+function touchMeta(){ DB.meta={t:nowMs()}; }
 
 /* ---------------- 週期（本週打過沒） ---------------- */
 // 伺服器每週固定一天重置，預設週四；可在角色資料頁改。
@@ -115,13 +127,61 @@ function weekStart(date, resetDay){
 const curWeek = () => weekStart();
 function clearsOf(week){ const w=week||curWeek(); return DB.clears[w] || (DB.clears[w]={}); }
 const ckey = (cid,dk) => cid+'|'+dk;
-function isCleared(cid,dk,week){ return !!clearsOf(week)[ckey(cid,dk)]; }
+// 每一格存 {v:有沒有打, t:改的時間}。存時間是為了多人同時改時能正確合併：
+// 同一格以「比較晚改的那次」為準，取消打勾才不會被別人的舊資料復活。
+function cellOf(week,cid,dk){
+  const e=clearsOf(week)[ckey(cid,dk)];
+  if(e===undefined) return null;
+  if(typeof e==='boolean') return {v:e,t:0};      // 舊格式
+  return e;
+}
+function isCleared(cid,dk,week){ const e=cellOf(week,cid,dk); return !!(e&&e.v); }
 function setCleared(cid,dk,v,week){
-  const c=clearsOf(week);
-  if(v) c[ckey(cid,dk)]=true; else delete c[ckey(cid,dk)];
+  clearsOf(week)[ckey(cid,dk)]={v:!!v, t:Date.now()};
   saveDB();
 }
-function resetWeek(week){ DB.clears[week||curWeek()]={}; saveDB(); }
+function resetWeek(week){
+  const c=clearsOf(week), now=Date.now();
+  Object.keys(c).forEach(k=>{ c[k]={v:false,t:now}; });
+  saveDB();
+}
+
+/* ---------------- 多人合併 ---------------- */
+// 成員：同名比 t，晚改的贏。職業庫/副本/裝等/設定：整份比 meta.t。
+// 通關格子：逐格比 t。這樣兩個人同時在改也不會互相蓋掉。
+const nowMs = () => Date.now();
+function touchPerson(p){ if(p) p.t = nowMs(); }
+function mergeDB(remote, local){
+  const R=mergeDefaults(JSON.parse(JSON.stringify(remote)));
+  const out=JSON.parse(JSON.stringify(local));
+
+  // 成員
+  const byName={};
+  out.people.forEach(p=>byName[p.name]=p);
+  R.people.forEach(function(rp){
+    const lp=byName[rp.name];
+    if(!lp){ out.people.push(rp); return; }
+    if((rp.t||0) > (lp.t||0)) out.people[out.people.indexOf(lp)]=rp;
+  });
+
+  // 職業庫 / 副本 / 裝等 / 設定：整份取比較新的
+  const rt=(remote.meta&&remote.meta.t)||0, lt=(local.meta&&local.meta.t)||0;
+  if(rt>lt){ out.jobs=R.jobs; out.dungeons=R.dungeons; out.gear=R.gear; out.cfg=R.cfg;
+             out.meta={t:rt}; }
+
+  // 通關紀錄：逐格取比較新的
+  out.clears=out.clears||{};
+  Object.keys(R.clears||{}).forEach(function(w){
+    out.clears[w]=out.clears[w]||{};
+    Object.keys(R.clears[w]).forEach(function(k){
+      const re=R.clears[w][k], le=out.clears[w][k];
+      const rT=(typeof re==='boolean')?0:(re.t||0);
+      const lT=(le===undefined)?-1:((typeof le==='boolean')?0:(le.t||0));
+      if(rT>lT) out.clears[w][k]=(typeof re==='boolean')?{v:re,t:0}:re;
+    });
+  });
+  return out;
+}
 
 /* ---------------- 戰力 ---------------- */
 const tierVal = k => (DB.gear.tiers.find(t=>t.k===k)||{v:0}).v;
@@ -170,11 +230,12 @@ const packChar = c => ({name:c.name, job:c.job, elem:c.elem, carry:c.carry, acti
   atk:c.atk, crit:c.crit, def:c.def, fd:c.fd,
   mwTier:c.mwTier, mwEnh:c.mwEnh, swTier:c.swTier, swEnh:c.swEnh, aTier:c.aTier, aEnh:c.aEnh});
 const packPerson = p => ({name:p.name, active:p.active, free:p.free, potion:p.potion,
-  chars:p.chars.map(packChar)});
+  t:p.t||0, chars:p.chars.map(packChar)});
 
 function exportJSON(){
   return JSON.stringify({people:DB.people.map(packPerson), jobs:DB.jobs,
-    dungeons:DB.dungeons, clears:DB.clears, gear:DB.gear, cfg:DB.cfg}, null, 2);
+    dungeons:DB.dungeons, clears:DB.clears, gear:DB.gear, cfg:DB.cfg,
+    meta:DB.meta||{t:0}}, null, 2);
 }
 function importJSON(txt){
   const s=JSON.parse(txt);
@@ -198,15 +259,128 @@ function mergePerson(txt){
   saveDB(); return list.length;
 }
 
-/* ---------------- 從 git 讀共用名單 ---------------- */
-// 團長把 exportJSON() 存成 data/roster.json commit 進去。
-// 用 http(s) 開（GitHub Pages）才讀得到；直接用 file:// 開會被 CORS 擋，屬正常。
-async function fetchRepoRoster(){
-  try{
-    const r = await fetch('data/roster.json', {cache:'no-store'});
-    return r.ok ? await r.text() : null;
-  }catch(e){ return null; }
-}
+/* ===================================================================
+   GitHub 同步：直接讀寫 repo 裡的 data/state.json
+   靜態網頁沒有後端，所以用 GitHub 的 API 當儲存空間。
+   讀取：public repo 不用權杖也讀得到。
+   寫入：需要一組你自己產的 fine-grained token（只存在你這台電腦的
+        localStorage，不會被 commit、也不會傳給任何第三方）。
+   =================================================================== */
+const Sync = (function(){
+  const TOKKEY='dn_helper_gh_token', CFGKEY='dn_helper_gh_cfg';
+  const state={ sha:null, dirty:false, busy:false, last:null, msg:'', timer:null, poll:null };
+  const listeners=[];
+
+  function cfg(){
+    let c=null;
+    try{ c=JSON.parse(LS.get(CFGKEY)); }catch(e){}
+    if(!c){
+      // 掛在 GitHub Pages 上時自動推出 owner / repo
+      const m=/^([^.]+)\.github\.io$/.exec(location.hostname);
+      const seg=location.pathname.split('/').filter(Boolean);
+      c={ owner:m?m[1]:'', repo:m?(seg[0]||''):'', branch:'main',
+          path:'data/state.json', auto:true };
+    }
+    return c;
+  }
+  function setCfg(c){ LS.set(CFGKEY, JSON.stringify(c)); }
+  const token    = () => LS.get(TOKKEY) || '';
+  const setToken = t => LS.set(TOKKEY, t||'');
+  const ready    = () => { const c=cfg(); return !!(c.owner&&c.repo); };
+
+  function b64enc(str){
+    const bytes=new TextEncoder().encode(str);
+    let bin=''; bytes.forEach(b=>{ bin+=String.fromCharCode(b); });
+    return btoa(bin);
+  }
+  function b64dec(b64){
+    const bin=atob(String(b64).replace(/\s/g,''));
+    return new TextDecoder().decode(Uint8Array.from(bin, ch=>ch.charCodeAt(0)));
+  }
+  function url(){
+    const c=cfg();
+    return 'https://api.github.com/repos/'+c.owner+'/'+c.repo+'/contents/'+c.path;
+  }
+  function headers(){
+    const h={'Accept':'application/vnd.github+json'};
+    if(token()) h['Authorization']='Bearer '+token();
+    return h;
+  }
+  function emit(msg){ state.msg=msg; listeners.forEach(f=>{ try{ f(status()); }catch(e){} }); }
+  function status(){
+    return { ok:ready(), hasToken:!!token(), dirty:state.dirty, busy:state.busy,
+             last:state.last, msg:state.msg, cfg:cfg() };
+  }
+  function onChange(f){ listeners.push(f); f(status()); }
+
+  // 讀遠端；回傳 {obj, sha} 或 null
+  async function fetchRemote(){
+    if(!ready()) return null;
+    const c=cfg();
+    const r=await fetch(url()+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),
+                        {headers:headers(), cache:'no-store'});
+    if(r.status===404) return {obj:null, sha:null};
+    if(!r.ok) throw new Error('讀取失敗 HTTP '+r.status+(r.status===403?'（可能是未登入的請求次數上限，填權杖就會提高）':''));
+    const j=await r.json();
+    return { obj:JSON.parse(b64dec(j.content)), sha:j.sha };
+  }
+
+  // 拉下來合併進本機
+  async function pull(silent){
+    if(!ready()) return false;
+    state.busy=true; emit('讀取中…');
+    try{
+      const got=await fetchRemote();
+      state.sha = got ? got.sha : null;
+      if(got&&got.obj){
+        DB = mergeDB(got.obj, DB);
+        LS.set(DBKEY, JSON.stringify(DB)); POWCACHE=null;
+      }
+      state.last=new Date(); state.busy=false;
+      emit(got&&got.obj ? '已同步 '+state.last.toLocaleTimeString() : '雲端還沒有存檔');
+      return true;
+    }catch(e){ state.busy=false; emit('讀取失敗：'+e.message); if(!silent) throw e; return false; }
+  }
+
+  // 推上去：先拉最新合併再寫，避免蓋掉別人剛改的
+  async function push(){
+    if(!ready()) throw new Error('還沒設定 repo');
+    if(!token()) throw new Error('還沒填 GitHub 權杖，只能讀不能寫');
+    state.busy=true; emit('上傳中…');
+    try{
+      const got=await fetchRemote();
+      if(got&&got.obj) DB = mergeDB(got.obj, DB);
+      state.sha = got ? got.sha : null;
+      const body={ message:'更新分團進度 '+new Date().toLocaleString('zh-TW'),
+                   content:b64enc(exportJSON()), branch:cfg().branch };
+      if(state.sha) body.sha=state.sha;
+      const r=await fetch(url(), {method:'PUT', headers:Object.assign(
+        {'Content-Type':'application/json'}, headers()), body:JSON.stringify(body)});
+      if(!r.ok){
+        const t=await r.text();
+        throw new Error('HTTP '+r.status+(r.status===401||r.status===403?'（權杖無效或沒有 Contents 寫入權限）':'')+' '+t.slice(0,120));
+      }
+      const j=await r.json();
+      state.sha=j.content.sha; state.dirty=false; state.last=new Date(); state.busy=false;
+      LS.set(DBKEY, JSON.stringify(DB));
+      emit('已上傳 '+state.last.toLocaleTimeString());
+      return true;
+    }catch(e){ state.busy=false; emit('上傳失敗：'+e.message); throw e; }
+  }
+
+  function markDirty(){
+    state.dirty=true; emit(state.msg);
+    if(!cfg().auto || !token() || !ready()) return;
+    clearTimeout(state.timer);
+    state.timer=setTimeout(()=>{ push().catch(()=>{}); }, 4000);   // 連續改動合併成一次 commit
+  }
+  function startPolling(sec){
+    clearInterval(state.poll);
+    state.poll=setInterval(()=>{ if(!state.busy&&!state.dirty) pull(true).then(r=>{ if(r&&window.onSynced) window.onSynced(); }); },
+                           (sec||90)*1000);
+  }
+  return {cfg,setCfg,token,setToken,ready,pull,push,markDirty,status,onChange,startPolling};
+})();
 
 /* ---------------- 導覽列 ---------------- */
 function navBar(active, subtitle){
@@ -216,4 +390,76 @@ function navBar(active, subtitle){
   }).join('');
   return '<header><h1>DN Helper</h1><nav>'+links+'</nav>'
        + '<span class="sub">'+esc(subtitle||'')+'</span></header>';
+}
+
+/* ---------------- 雲端存檔面板（三頁共用） ---------------- */
+function syncPanelHTML(){
+  const c=Sync.cfg();
+  return '<div class="panel" id="syncPanel">'
+   + '<div class="row">'
+   +   '<b>雲端存檔</b><span id="syncMsg" class="hint">—</span>'
+   +   '<span id="syncDot" class="tag">未設定</span>'
+   +   '<button onclick="Sync.push().then(afterSync).catch(e=>alert(e.message))">上傳我的更新</button>'
+   +   '<button onclick="Sync.pull().then(afterSync).catch(e=>alert(e.message))">下載最新進度</button>'
+   +   '<label><input type="checkbox" id="syncAuto"> 自動同步</label>'
+   + '</div>'
+   + '<details><summary>設定 GitHub 連線（第一次用要設，每台電腦各設一次）</summary>'
+   +   '<div class="row" style="margin-top:10px">'
+   +     '<label>帳號</label><input type="text" id="ghOwner" style="width:150px" value="'+esc(c.owner)+'">'
+   +     '<label>repo</label><input type="text" id="ghRepo" style="width:150px" value="'+esc(c.repo)+'">'
+   +     '<label>分支</label><input type="text" id="ghBranch" style="width:90px" value="'+esc(c.branch)+'">'
+   +     '<label>檔案</label><input type="text" id="ghPath" style="width:170px" value="'+esc(c.path)+'">'
+   +   '</div>'
+   +   '<div class="row" style="margin-top:8px">'
+   +     '<label>寫入權杖</label>'
+   +     '<input type="password" id="ghToken" style="width:340px" placeholder="github_pat_… 只存在這台電腦">'
+   +     '<button onclick="saveSyncCfg()">儲存設定</button>'
+   +     '<button onclick="clearToken()">清掉權杖</button>'
+   +   '</div>'
+   +   '<p class="hint" style="margin:10px 0 0">'
+   +     '沒填權杖也能<b>下載</b>看進度，要<b>上傳</b>才需要。到 '
+   +     '<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → Fine-grained tokens</a>'
+   +     ' 產一組：Repository access 只選這個 repo、Permissions 開 <b>Contents: Read and write</b>，設個到期日。'
+   +     '<br>權杖只會存在你這台電腦的瀏覽器裡，不會被 commit 進 repo。拿到權杖的人可以改這個 repo，所以不要貼到群組或截圖外流。'
+   +   '</p>'
+   + '</details></div>';
+}
+function mountSync(onUpdate){
+  const host=document.getElementById('sync');
+  if(!host) return;
+  host.innerHTML=syncPanelHTML();
+  document.getElementById('syncAuto').checked = Sync.cfg().auto!==false;
+  document.getElementById('syncAuto').addEventListener('change', function(e){
+    const c=Sync.cfg(); c.auto=e.target.checked; Sync.setCfg(c);
+  });
+  window.afterSync = function(){ if(onUpdate) onUpdate(); };
+  window.saveSyncCfg = function(){
+    const c=Sync.cfg();
+    c.owner=document.getElementById('ghOwner').value.trim();
+    c.repo=document.getElementById('ghRepo').value.trim();
+    c.branch=document.getElementById('ghBranch').value.trim()||'main';
+    c.path=document.getElementById('ghPath').value.trim()||'data/state.json';
+    Sync.setCfg(c);
+    const tk=document.getElementById('ghToken').value.trim();
+    if(tk) Sync.setToken(tk);
+    document.getElementById('ghToken').value='';
+    alert('設定已儲存');
+    Sync.pull().then(()=>{ if(onUpdate) onUpdate(); }).catch(e=>alert(e.message));
+  };
+  window.clearToken = function(){ Sync.setToken(''); alert('權杖已從這台電腦清除'); };
+  Sync.onChange(function(st){
+    const dot=document.getElementById('syncDot'), msg=document.getElementById('syncMsg');
+    if(!dot||!msg) return;
+    msg.textContent=st.msg||'—';
+    if(!st.ok){ dot.textContent='未設定'; dot.className='tag t-late'; }
+    else if(st.busy){ dot.textContent='同步中'; dot.className='tag t-late'; }
+    else if(st.dirty){ dot.textContent='有未上傳的改動'; dot.className='tag t-carry'; }
+    else if(!st.hasToken){ dot.textContent='唯讀（沒權杖）'; dot.className='tag t-leech'; }
+    else { dot.textContent='已同步'; dot.className='tag t-done'; }
+  });
+  if(Sync.ready()){
+    Sync.pull(true).then(function(){ if(onUpdate) onUpdate(); });
+    Sync.startPolling(90);
+    window.onSynced=function(){ if(onUpdate) onUpdate(); };
+  }
 }

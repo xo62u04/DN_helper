@@ -36,15 +36,39 @@ python -m http.server 8777
 
 然後開 http://localhost:8777/roster.html
 
-## 名單怎麼共用
+## 名單和進度怎麼共用
 
-localStorage 是各自電腦獨立的，所以用「匯出 JSON → commit」的方式同步：
+頁面會直接讀寫 repo 裡的 `data/state.json`，那份就是大家的共同存檔（名單、裝備、職業庫、每週通關進度全在裡面）。
 
-1. 每個人開 `roster.html`，填好**自己**的角色和裝備
-2. 按「只匯出這個人」，把那段 JSON 貼給團長
-3. 團長按「合併貼上的人」（同名覆蓋、沒有的新增），五個人都合併完
-4. 團長按「匯出全部」，內容存成 `data/roster.json`，commit + push
-5. 其他人開頁面按「讀取 git 上的 data/roster.json」就同步到最新
+### 第一次設定（每台電腦各做一次）
+
+1. 開任一頁最上面的「雲端存檔 → 設定 GitHub 連線」
+2. 帳號 / repo 掛在 GitHub Pages 上會自動帶入，本機跑要自己填 `xo62u04` / `DN_helper`
+3. 想**上傳**的人要填一組權杖：到 GitHub → Settings → Developer settings →
+   [Fine-grained tokens](https://github.com/settings/personal-access-tokens/new)，
+   Repository access 只選這個 repo、Permissions 開 **Contents: Read and write**，設個到期日
+4. 貼進「寫入權杖」按儲存
+
+權杖只存在你自己瀏覽器的 localStorage，不會被 commit、也不會出現在 `state.json` 裡。
+**沒填權杖一樣可以下載看進度**，只是不能上傳。
+
+### 平常怎麼用
+
+- 打完副本點一下打勾 → 4 秒後自動上傳（「自動同步」預設開著）
+- 頁面每 90 秒自動下載一次，別人打的進度會自己出現
+- 也可以手動按「上傳我的更新」「下載最新進度」
+
+### 兩個人同時改會怎樣
+
+不會互相蓋掉，資料是逐項合併的：
+
+| 資料 | 合併規則 |
+|---|---|
+| 通關打勾 | **逐格**比時間，晚改的贏。所以取消打勾也不會被別人的舊資料復活 |
+| 成員與裝備 | 同名成員比時間，晚改的整個人蓋過去 |
+| 職業庫／副本／裝等／設定 | 整組比時間，晚改的贏 |
+
+上傳前一定會先抓最新的合併過再寫，所以不會出現「我一按上傳就把別人剛打的洗掉」。
 
 ## 職業庫要自己填
 
