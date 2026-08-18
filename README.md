@@ -40,17 +40,20 @@ python -m http.server 8777
 
 頁面會直接讀寫 repo 裡的 `data/state.json`，那份就是大家的共同存檔（名單、裝備、職業庫、每週通關進度全在裡面）。
 
-### 第一次設定（每台電腦各做一次）
+### 第一次設定
 
-1. 開任一頁最上面的「雲端存檔 → 設定 GitHub 連線」
-2. 帳號 / repo 掛在 GitHub Pages 上會自動帶入，本機跑要自己填 `xo62u04` / `DN_helper`
-3. 想**上傳**的人要填一組權杖：到 GitHub → Settings → Developer settings →
-   [Fine-grained tokens](https://github.com/settings/personal-access-tokens/new)，
-   Repository access 只選這個 repo、Permissions 開 **Contents: Read and write**，設個到期日
-4. 貼進「寫入權杖」按儲存
+同步有兩種接法，**推薦中繼**，因為隊友不用有 GitHub 帳號：
 
-權杖只存在你自己瀏覽器的 localStorage，不會被 commit、也不會出現在 `state.json` 裡。
-**沒填權杖一樣可以下載看進度**，只是不能上傳。
+| 接法 | 誰適用 | 要填什麼 |
+|---|---|---|
+| **中繼（Worker）** | 全部人，包含沒有 GitHub 帳號的隊友 | 中繼網址 + 團隊密碼 |
+| 直連 GitHub | 只有自己有權杖的人 | 帳號/repo + 自己的 fine-grained token |
+
+中繼要團長先部署一次，步驟看 [`worker/README.md`](worker/README.md)（大約十分鐘）。
+部署完把**網址**和**團隊密碼**私訊給隊友，各自在任一頁的
+「雲端存檔 → 連線設定」填進去、按儲存，就結束了。
+
+沒設定任何東西的人一樣**看得到**進度（public repo 讀取不需要登入），只是不能上傳。
 
 ### 平常怎麼用
 

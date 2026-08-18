@@ -1,0 +1,9 @@
+name = "dn-helper-relay"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+REPO           = "xo62u04/DN_helper"
+BRANCH         = "main"
+FILE_PATH      = "data/state.json"
+ALLOWED_ORIGIN = "https://xo62u04.github.io"

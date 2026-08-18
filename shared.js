@@ -267,26 +267,28 @@ function mergePerson(txt){
         localStorage，不會被 commit、也不會傳給任何第三方）。
    =================================================================== */
 const Sync = (function(){
-  const TOKKEY='dn_helper_gh_token', CFGKEY='dn_helper_gh_cfg';
+  const TOKKEY='dn_helper_gh_token', TEAMKEY='dn_helper_team_key', CFGKEY='dn_helper_gh_cfg';
   const state={ sha:null, dirty:false, busy:false, last:null, msg:'', timer:null, poll:null };
   const listeners=[];
 
+  // 有填中繼網址就走中繼（隊友不用權杖）；沒填就直連 GitHub（要自己的權杖）
   function cfg(){
     let c=null;
     try{ c=JSON.parse(LS.get(CFGKEY)); }catch(e){}
-    if(!c){
-      // 掛在 GitHub Pages 上時自動推出 owner / repo
-      const m=/^([^.]+)\.github\.io$/.exec(location.hostname);
-      const seg=location.pathname.split('/').filter(Boolean);
-      c={ owner:m?m[1]:'', repo:m?(seg[0]||''):'', branch:'main',
-          path:'data/state.json', auto:true };
-    }
-    return c;
+    const m=/^([^.]+)\.github\.io$/.exec(location.hostname);
+    const seg=location.pathname.split('/').filter(Boolean);
+    return Object.assign({ relay:'', owner:m?m[1]:'', repo:m?(seg[0]||''):'',
+                           branch:'main', path:'data/state.json', auto:true }, c||{});
   }
   function setCfg(c){ LS.set(CFGKEY, JSON.stringify(c)); }
-  const token    = () => LS.get(TOKKEY) || '';
-  const setToken = t => LS.set(TOKKEY, t||'');
-  const ready    = () => { const c=cfg(); return !!(c.owner&&c.repo); };
+  const token      = () => LS.get(TOKKEY) || '';
+  const setToken   = t => LS.set(TOKKEY, t||'');
+  const teamKey    = () => LS.get(TEAMKEY) || '';
+  const setTeamKey = k => LS.set(TEAMKEY, k||'');
+  const viaRelay   = () => !!cfg().relay;
+  const ready      = () => { const c=cfg(); return c.relay ? true : !!(c.owner&&c.repo); };
+  // 中繼模式下人人都能寫；直連模式要有自己的權杖
+  const canWrite   = () => viaRelay() || !!token();
 
   function b64enc(str){
     const bytes=new TextEncoder().encode(str);
@@ -297,32 +299,51 @@ const Sync = (function(){
     const bin=atob(String(b64).replace(/\s/g,''));
     return new TextDecoder().decode(Uint8Array.from(bin, ch=>ch.charCodeAt(0)));
   }
-  function url(){
+  const relayURL = () => cfg().relay.replace(/\/+$/,'') + '/state';
+  function ghURL(){
     const c=cfg();
     return 'https://api.github.com/repos/'+c.owner+'/'+c.repo+'/contents/'+c.path;
   }
-  function headers(){
+  function relayHeaders(){
+    const h={};
+    if(teamKey()) h['X-Team-Key']=teamKey();
+    return h;
+  }
+  function ghHeaders(){
     const h={'Accept':'application/vnd.github+json'};
     if(token()) h['Authorization']='Bearer '+token();
     return h;
   }
   function emit(msg){ state.msg=msg; listeners.forEach(f=>{ try{ f(status()); }catch(e){} }); }
   function status(){
-    return { ok:ready(), hasToken:!!token(), dirty:state.dirty, busy:state.busy,
-             last:state.last, msg:state.msg, cfg:cfg() };
+    return { ok:ready(), relay:viaRelay(), canWrite:canWrite(), hasToken:!!token(),
+             dirty:state.dirty, busy:state.busy, last:state.last, msg:state.msg, cfg:cfg() };
   }
   function onChange(f){ listeners.push(f); f(status()); }
 
-  // 讀遠端；回傳 {obj, sha} 或 null
+  // 讀遠端；回傳 {obj, sha}
   async function fetchRemote(){
     if(!ready()) return null;
-    const c=cfg();
-    const r=await fetch(url()+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),
-                        {headers:headers(), cache:'no-store'});
-    if(r.status===404) return {obj:null, sha:null};
-    if(!r.ok) throw new Error('讀取失敗 HTTP '+r.status+(r.status===403?'（可能是未登入的請求次數上限，填權杖就會提高）':''));
-    const j=await r.json();
-    return { obj:JSON.parse(b64dec(j.content)), sha:j.sha };
+    let content, sha;
+    if(viaRelay()){
+      const r=await fetch(relayURL()+'?t='+Date.now(), {headers:relayHeaders(), cache:'no-store'});
+      if(!r.ok){
+        const e=await r.json().catch(()=>({}));
+        throw new Error(r.status===401 ? '團隊密碼不對' : ('中繼讀取失敗 '+r.status+' '+(e.error||'')));
+      }
+      const j=await r.json();
+      if(!j.content) return {obj:null, sha:null};
+      content=j.content; sha=j.sha;
+    }else{
+      const c=cfg();
+      const r=await fetch(ghURL()+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),
+                          {headers:ghHeaders(), cache:'no-store'});
+      if(r.status===404) return {obj:null, sha:null};
+      if(!r.ok) throw new Error('讀取失敗 HTTP '+r.status+(r.status===403?'（未登入的請求次數上限，設中繼或填權杖就會提高）':''));
+      const j=await r.json();
+      content=j.content; sha=j.sha;
+    }
+    return { obj:JSON.parse(b64dec(content)), sha:sha };
   }
 
   // 拉下來合併進本機
@@ -344,24 +365,38 @@ const Sync = (function(){
 
   // 推上去：先拉最新合併再寫，避免蓋掉別人剛改的
   async function push(){
-    if(!ready()) throw new Error('還沒設定 repo');
-    if(!token()) throw new Error('還沒填 GitHub 權杖，只能讀不能寫');
+    if(!ready())    throw new Error('還沒設定同步（中繼網址或 repo）');
+    if(!canWrite()) throw new Error('直連模式要填自己的 GitHub 權杖才能上傳；改用中繼網址就不用');
     state.busy=true; emit('上傳中…');
     try{
       const got=await fetchRemote();
       if(got&&got.obj) DB = mergeDB(got.obj, DB);
       state.sha = got ? got.sha : null;
-      const body={ message:'更新分團進度 '+new Date().toLocaleString('zh-TW'),
-                   content:b64enc(exportJSON()), branch:cfg().branch };
-      if(state.sha) body.sha=state.sha;
-      const r=await fetch(url(), {method:'PUT', headers:Object.assign(
-        {'Content-Type':'application/json'}, headers()), body:JSON.stringify(body)});
+      const payload={ message:'更新分團進度 '+new Date().toLocaleString('zh-TW'),
+                      content:b64enc(exportJSON()) };
+      if(state.sha) payload.sha=state.sha;
+      let r;
+      if(viaRelay()){
+        r=await fetch(relayURL(), {method:'PUT',
+          headers:Object.assign({'Content-Type':'application/json'}, relayHeaders()),
+          body:JSON.stringify(payload)});
+      }else{
+        payload.branch=cfg().branch;
+        r=await fetch(ghURL(), {method:'PUT',
+          headers:Object.assign({'Content-Type':'application/json'}, ghHeaders()),
+          body:JSON.stringify(payload)});
+      }
       if(!r.ok){
         const t=await r.text();
-        throw new Error('HTTP '+r.status+(r.status===401||r.status===403?'（權杖無效或沒有 Contents 寫入權限）':'')+' '+t.slice(0,120));
+        let hint='';
+        if(r.status===401) hint=viaRelay()?'（團隊密碼不對）':'（權杖無效）';
+        if(r.status===403) hint='（權杖沒有 Contents 寫入權限）';
+        if(r.status===409) hint='（別人同時在寫，再按一次上傳就好）';
+        throw new Error('HTTP '+r.status+hint+' '+t.slice(0,120));
       }
       const j=await r.json();
-      state.sha=j.content.sha; state.dirty=false; state.last=new Date(); state.busy=false;
+      state.sha=(j.sha)||(j.content&&j.content.sha)||null;
+      state.dirty=false; state.last=new Date(); state.busy=false;
       LS.set(DBKEY, JSON.stringify(DB));
       emit('已上傳 '+state.last.toLocaleTimeString());
       return true;
@@ -370,7 +405,7 @@ const Sync = (function(){
 
   function markDirty(){
     state.dirty=true; emit(state.msg);
-    if(!cfg().auto || !token() || !ready()) return;
+    if(!cfg().auto || !canWrite() || !ready()) return;
     clearTimeout(state.timer);
     state.timer=setTimeout(()=>{ push().catch(()=>{}); }, 4000);   // 連續改動合併成一次 commit
   }
@@ -379,7 +414,8 @@ const Sync = (function(){
     state.poll=setInterval(()=>{ if(!state.busy&&!state.dirty) pull(true).then(r=>{ if(r&&window.onSynced) window.onSynced(); }); },
                            (sec||90)*1000);
   }
-  return {cfg,setCfg,token,setToken,ready,pull,push,markDirty,status,onChange,startPolling};
+  return {cfg,setCfg,token,setToken,teamKey,setTeamKey,viaRelay,canWrite,
+          ready,pull,push,markDirty,status,onChange,startPolling};
 })();
 
 /* ---------------- 導覽列 ---------------- */
@@ -403,25 +439,34 @@ function syncPanelHTML(){
    +   '<button onclick="Sync.pull().then(afterSync).catch(e=>alert(e.message))">下載最新進度</button>'
    +   '<label><input type="checkbox" id="syncAuto"> 自動同步</label>'
    + '</div>'
-   + '<details><summary>設定 GitHub 連線（第一次用要設，每台電腦各設一次）</summary>'
+   + '<details><summary>連線設定（第一次用要設，每台電腦各設一次）</summary>'
    +   '<div class="row" style="margin-top:10px">'
-   +     '<label>帳號</label><input type="text" id="ghOwner" style="width:150px" value="'+esc(c.owner)+'">'
-   +     '<label>repo</label><input type="text" id="ghRepo" style="width:150px" value="'+esc(c.repo)+'">'
-   +     '<label>分支</label><input type="text" id="ghBranch" style="width:90px" value="'+esc(c.branch)+'">'
-   +     '<label>檔案</label><input type="text" id="ghPath" style="width:170px" value="'+esc(c.path)+'">'
+   +     '<label><b>中繼網址</b></label>'
+   +     '<input type="text" id="ghRelay" style="width:330px" placeholder="https://dn-helper-relay.xxx.workers.dev" value="'+esc(c.relay)+'">'
+   +     '<label>團隊密碼</label>'
+   +     '<input type="password" id="ghTeamKey" style="width:170px" placeholder="團長給的那組">'
    +   '</div>'
-   +   '<div class="row" style="margin-top:8px">'
-   +     '<label>寫入權杖</label>'
-   +     '<input type="password" id="ghToken" style="width:340px" placeholder="github_pat_… 只存在這台電腦">'
+   +   '<p class="hint" style="margin:6px 0 0"><b>一般隊友只要填這兩格就好</b>，不需要 GitHub 帳號也不需要權杖。</p>'
+   +   '<details style="margin-top:12px"><summary>沒有中繼、要直連 GitHub 的話（需要自己的權杖）</summary>'
+   +     '<div class="row" style="margin-top:8px">'
+   +       '<label>帳號</label><input type="text" id="ghOwner" style="width:140px" value="'+esc(c.owner)+'">'
+   +       '<label>repo</label><input type="text" id="ghRepo" style="width:140px" value="'+esc(c.repo)+'">'
+   +       '<label>分支</label><input type="text" id="ghBranch" style="width:80px" value="'+esc(c.branch)+'">'
+   +       '<label>檔案</label><input type="text" id="ghPath" style="width:160px" value="'+esc(c.path)+'">'
+   +     '</div>'
+   +     '<div class="row" style="margin-top:8px">'
+   +       '<label>寫入權杖</label>'
+   +       '<input type="password" id="ghToken" style="width:320px" placeholder="github_pat_… 只存在這台電腦">'
+   +     '</div>'
+   +     '<p class="hint" style="margin:8px 0 0">到 '
+   +       '<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → Fine-grained tokens</a>'
+   +       ' 產一組：Repository access 只選這個 repo、Permissions 開 <b>Contents: Read and write</b>。'
+   +       '權杖只存在你這台電腦，不會被 commit。有中繼的話就不需要這個。</p>'
+   +   '</details>'
+   +   '<div class="row" style="margin-top:12px">'
    +     '<button onclick="saveSyncCfg()">儲存設定</button>'
-   +     '<button onclick="clearToken()">清掉權杖</button>'
+   +     '<button onclick="clearSecrets()">清掉這台電腦存的密碼／權杖</button>'
    +   '</div>'
-   +   '<p class="hint" style="margin:10px 0 0">'
-   +     '沒填權杖也能<b>下載</b>看進度，要<b>上傳</b>才需要。到 '
-   +     '<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → Fine-grained tokens</a>'
-   +     ' 產一組：Repository access 只選這個 repo、Permissions 開 <b>Contents: Read and write</b>，設個到期日。'
-   +     '<br>權杖只會存在你這台電腦的瀏覽器裡，不會被 commit 進 repo。拿到權杖的人可以改這個 repo，所以不要貼到群組或截圖外流。'
-   +   '</p>'
    + '</details></div>';
 }
 function mountSync(onUpdate){
@@ -435,18 +480,23 @@ function mountSync(onUpdate){
   window.afterSync = function(){ if(onUpdate) onUpdate(); };
   window.saveSyncCfg = function(){
     const c=Sync.cfg();
-    c.owner=document.getElementById('ghOwner').value.trim();
-    c.repo=document.getElementById('ghRepo').value.trim();
-    c.branch=document.getElementById('ghBranch').value.trim()||'main';
-    c.path=document.getElementById('ghPath').value.trim()||'data/state.json';
+    const g=id=>{ const el=document.getElementById(id); return el?el.value.trim():''; };
+    c.relay  = g('ghRelay').replace(/\/+$/,'');
+    c.owner  = g('ghOwner');
+    c.repo   = g('ghRepo');
+    c.branch = g('ghBranch')||'main';
+    c.path   = g('ghPath')||'data/state.json';
     Sync.setCfg(c);
-    const tk=document.getElementById('ghToken').value.trim();
-    if(tk) Sync.setToken(tk);
-    document.getElementById('ghToken').value='';
+    const tk=g('ghToken'); if(tk) Sync.setToken(tk);
+    const kk=g('ghTeamKey'); if(kk) Sync.setTeamKey(kk);
+    ['ghToken','ghTeamKey'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     alert('設定已儲存');
     Sync.pull().then(()=>{ if(onUpdate) onUpdate(); }).catch(e=>alert(e.message));
   };
-  window.clearToken = function(){ Sync.setToken(''); alert('權杖已從這台電腦清除'); };
+  window.clearSecrets = function(){
+    Sync.setToken(''); Sync.setTeamKey('');
+    alert('已從這台電腦清除');
+  };
   Sync.onChange(function(st){
     const dot=document.getElementById('syncDot'), msg=document.getElementById('syncMsg');
     if(!dot||!msg) return;
@@ -454,14 +504,14 @@ function mountSync(onUpdate){
     if(!st.ok){ dot.textContent='未設定'; dot.className='tag t-late'; }
     else if(st.busy){ dot.textContent='同步中'; dot.className='tag t-late'; }
     else if(st.dirty){ dot.textContent='有未上傳的改動'; dot.className='tag t-carry'; }
-    else if(!st.hasToken){ dot.textContent='唯讀（沒權杖）'; dot.className='tag t-leech'; }
-    else { dot.textContent='已同步'; dot.className='tag t-done'; }
+    else if(!st.canWrite){ dot.textContent='唯讀'; dot.className='tag t-leech'; }
+    else { dot.textContent='已同步'+(st.relay?'（中繼）':''); dot.className='tag t-done'; }
   });
   if(Sync.ready()){
     Sync.pull(true).then(function(){ if(onUpdate) onUpdate(); });
     // 未登入的 GitHub API 只有 60 次/小時（整個 IP 共用），所以沒權杖時放慢輪詢；
     // 有權杖是 5000 次/小時，可以拉快讓大家更即時看到彼此的進度。
-    Sync.startPolling(Sync.status().hasToken ? 60 : 240);
+    Sync.startPolling(Sync.status().canWrite ? 60 : 240);
     window.onSynced=function(){ if(onUpdate) onUpdate(); };
   }
 }
