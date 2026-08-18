@@ -1,0 +1,66 @@
+:root{
+  --bg:#12141a; --panel:#1a1d26; --panel2:#222632; --line:#2e3342;
+  --txt:#e7e9ef; --dim:#8d94a8; --acc:#5b9cff; --carry:#ffb648; --leech:#8d94a8;
+  --ok:#4bd18c; --warn:#ff6b6b; --potion:#c06bff; --pow:#6fd7e8;
+  --fire:#ff7a5c; --ice:#5cc8ff; --light:#ffe07a; --dark:#c58cff; --none:#8d94a8;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);
+     font:16px/1.65 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+h1{font-size:24px;margin:0}
+h2{font-size:19px;margin:0 0 12px;color:var(--dim);font-weight:600;letter-spacing:.5px}
+h3{font-size:17px;margin:0 0 8px}
+a{color:var(--acc)}
+
+/* ---- 導覽 ---- */
+header{padding:14px 22px;border-bottom:1px solid var(--line);display:flex;
+       align-items:center;gap:18px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:20}
+nav{display:flex;gap:8px;flex-wrap:wrap}
+nav a{padding:6px 15px;border:1px solid var(--line);border-radius:20px;text-decoration:none;
+      color:var(--dim);font-size:15px}
+nav a:hover{border-color:var(--acc);color:var(--txt)}
+nav a.on{background:var(--acc);border-color:var(--acc);color:#08101f;font-weight:700}
+header .sub{color:var(--dim);font-size:14px;margin-left:auto}
+
+.wrap{padding:18px 22px;max-width:1700px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+
+button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+       border-radius:6px;padding:6px 13px;cursor:pointer;font-size:15px;font-family:inherit}
+button:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#08101f;font-weight:700;padding:10px 24px;font-size:17px}
+button.mini{padding:1px 8px;font-size:15px;color:var(--dim)}
+button.mini:hover{color:var(--warn);border-color:var(--warn)}
+input,select,textarea{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+             border-radius:6px;padding:5px 8px;font-size:15px;font-family:inherit}
+input[type=number]{width:78px}
+input[type=checkbox]{accent-color:var(--acc);width:18px;height:18px;cursor:pointer}
+label{cursor:pointer;user-select:none}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hint{color:var(--dim);font-size:14px}
+.msg{padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:15px}
+.msg.warn{background:#3a1f22;border:1px solid var(--warn);color:#ffc9c9}
+.msg.ok{background:#16301f;border:1px solid #2c6b48;color:#b6efd0}
+.msg.tip{background:#1c2436;border:1px solid var(--line);color:var(--dim)}
+
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{border-bottom:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:middle}
+th{color:var(--dim);font-weight:600;font-size:14px;position:sticky;top:0;background:var(--panel)}
+tr.off td{opacity:.4}
+td.num,th.num{text-align:right}
+
+.tag{font-size:12.5px;padding:1px 7px;border-radius:4px;border:1px solid;display:inline-block}
+.t-carry{color:var(--carry);border-color:var(--carry)}
+.t-leech{color:var(--leech);border-color:var(--leech)}
+.t-potion{color:var(--potion);border-color:var(--potion)}
+.t-late{color:var(--dim);border-color:var(--line)}
+.t-done{color:var(--ok);border-color:var(--ok)}
+.e-火{color:var(--fire);border-color:var(--fire)}
+.e-水{color:var(--ice);border-color:var(--ice)}
+.e-光{color:var(--light);border-color:var(--light)}
+.e-暗{color:var(--dark);border-color:var(--dark)}
+.e-無{color:var(--none);border-color:var(--line)}
+
+details{margin-top:14px}
+summary{cursor:pointer;color:var(--dim);font-size:15px}
+textarea{width:100%;height:180px;font:13px/1.5 Consolas,monospace;margin-top:10px}

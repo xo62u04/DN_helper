@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>角色資料 — DN Helper</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  td.gear select{padding:3px 2px;font-size:14px}
+  td.gear input{width:44px;padding:3px 4px;font-size:14px}
+  td input.stat{width:82px}
+  td .cn{min-width:90px}
+  .pw{color:var(--pow);font-weight:700}
+  .pw.est{color:var(--dim);font-weight:400}
+  .ptitle{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+  .ptitle .nm{font-size:20px;font-weight:700}
+  .tbl-wrap{overflow-x:auto}
+  .jobs td input[type=text]{width:100%}
+  .jobs td.n{width:110px}
+</style>
+</head>
+<body>
+<div id="nav"></div>
+
+<div class="wrap">
+
+  <div id="notice"></div>
+
+  <div class="panel">
+    <h2>設定</h2>
+    <div class="row">
+      <label>每週重置日</label>
+      <select id="resetDay"></select>
+      <span class="hint">目前週期：<b id="curweek"></b></span>
+      <span style="width:20px"></span>
+      <label><input type="checkbox" id="useFd"> 戰力算入終傷</label>
+      <label><input type="checkbox" id="useCrit"> 戰力算入爆擊</label>
+      <span class="hint">戰力 = 表攻 ×(1+終傷%) ×(1+爆擊%)</span>
+    </div>
+    <p class="hint" style="margin:8px 0 0">
+      爆擊欄請填「爆擊率 %」才適合算進戰力；如果你填的是爆擊值（未換算），就把上面那個勾拿掉，
+      爆擊只會顯示不參與計算。沒填表攻的角色會用裝備推估（戰力顯示成灰色）。
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>角色與裝備</h2>
+    <div id="roster"></div>
+    <div class="row" style="margin-top:12px">
+      <input type="text" id="newPerson" placeholder="新增成員名稱">
+      <button onclick="addPerson()">＋成員</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>職業庫 — 每個職業的屬性與團隊 BUFF</h2>
+    <div id="jobwarn"></div>
+    <div class="tbl-wrap">
+      <table class="jobs" id="jobs"></table>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="newJob" placeholder="新增職業名稱">
+      <button onclick="addJob()">＋職業</button>
+    </div>
+    <p class="hint" style="margin:10px 0 0">
+      <b>BUFF 欄</b>用逗號分隔標籤，分團頁會靠這些標籤判斷一團缺什麼、該補什麼職業。建議用這幾個字：
+      <b>增傷、爆擊、破防、減抗、回血、護盾、復活、解控、加速</b>（可自己加別的）。
+      <b>增傷%</b>填這個職業給隊友的主要增傷數字，用來排「誰跟誰一團比較賺」。
+      屬性填 火／水／光／暗；分團時會盡量把同屬性的排在一起。
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>裝等基準值（沒填表攻時的推估用）</h2>
+    <div id="tiers"></div>
+    <div class="row" style="margin-top:8px">
+      <input type="text" id="newTier" placeholder="新增裝等 例：70A" style="width:140px">
+      <input type="number" id="newTierVal" value="260">
+      <button onclick="addTier()">＋</button>
+      <span style="width:20px"></span>
+      <label>武器每 +1</label><input type="number" id="wPer" onchange="setGear()">
+      <label>防具每 +1</label><input type="number" id="aPer" onchange="setGear()">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>資料交換（給團隊共用）</h2>
+    <div class="row">
+      <button onclick="doExportAll()">匯出全部</button>
+      <select id="whoMine"></select>
+      <button onclick="doExportMine()">只匯出這個人</button>
+      <button onclick="doMerge()">合併貼上的人</button>
+      <button onclick="doImportAll()">整份匯入（覆蓋）</button>
+      <button onclick="loadRepo()">讀取 git 上的 data/roster.json</button>
+    </div>
+    <textarea id="io" placeholder="JSON 會出現在這裡，或把別人給你的 JSON 貼進來再按上面的按鈕"></textarea>
+    <p class="hint">
+      流程：每個人在自己電腦填好 → 按「只匯出這個人」→ 把 JSON 給團長 → 團長按「合併貼上的人」→
+      再「匯出全部」存成 <code>data/roster.json</code> commit 進 git。其他人開頁面按「讀取 git 上的…」就同步到最新。
+    </p>
+  </div>
+
+</div>
+
+<script src="shared.js"></script>
+<script>
+/* ---------- 初始化 ---------- */
+document.getElementById('nav').innerHTML = navBar('roster.html','SEA 經典服 · PC');
+const WD=['週日','週一','週二','週三','週四','週五','週六'];
+document.getElementById('resetDay').innerHTML =
+  WD.map((w,i)=>'<option value="'+i+'">'+w+'</option>').join('');
+
+function syncCfg(){
+  document.getElementById('resetDay').value = DB.cfg.resetDay;
+  document.getElementById('useFd').checked  = DB.cfg.useFd;
+  document.getElementById('useCrit').checked= DB.cfg.useCrit;
+  document.getElementById('curweek').textContent = curWeek()+' 起';
+  document.getElementById('wPer').value = DB.gear.wPer;
+  document.getElementById('aPer').value = DB.gear.aPer;
+}
+['resetDay','useFd','useCrit'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', e=>{
+    if(id==='resetDay') DB.cfg.resetDay = +e.target.value;
+    else DB.cfg[id] = e.target.checked;
+    saveDB(); syncCfg(); renderRoster();
+  });
+});
+
+/* ---------- 角色表 ---------- */
+const tierOpts = k => DB.gear.tiers
+  .map(t=>'<option value="'+esc(t.k)+'"'+(t.k===k?' selected':'')+'>'+esc(t.k)+'</option>').join('');
+const jobOpts = j => '<option value=""></option>' + DB.jobs
+  .map(x=>'<option value="'+esc(x.name)+'"'+(x.name===j?' selected':'')+'>'+esc(x.name)+'</option>').join('');
+const elemOpts = e => ['','火','水','光','暗']
+  .map(x=>'<option value="'+x+'"'+(x===e?' selected':'')+'>'+(x||'—')+'</option>').join('');
+
+function gearCell(p,c,part){
+  const T=part+'Tier', E=part+'Enh';
+  return '<td class="gear"><select data-a="'+T+'" data-p="'+p.id+'" data-c="'+c.id+'">'+tierOpts(c[T])+'</select>'
+       + ' +<input type="number" min="0" max="20" value="'+c[E]+'" data-a="'+E+'" data-p="'+p.id+'" data-c="'+c.id+'"></td>';
+}
+function statCell(p,c,f,ph){
+  return '<td><input type="number" class="stat" min="0" value="'+(c[f]||'')+'" placeholder="'+ph+'"'
+       + ' data-a="'+f+'" data-p="'+p.id+'" data-c="'+c.id+'"></td>';
+}
+
+function renderRoster(){
+  POWCACHE=null;
+  const box=document.getElementById('roster'); box.innerHTML='';
+  DB.people.forEach(p=>{
+    const d=document.createElement('div');
+    d.className='panel'; d.style.background='var(--panel2)'; d.style.marginBottom='12px';
+    let h='<div class="ptitle">'
+        + '<input type="checkbox" '+(p.active?'checked':'')+' data-a="pactive" data-p="'+p.id+'" title="列入名單">'
+        + '<span class="nm">'+esc(p.name)+'</span>'
+        + '<button class="mini" data-a="delp" data-p="'+p.id+'">✕</button></div>'
+        + '<div class="tbl-wrap"><table><tr>'
+        + '<th></th><th>角色</th><th>職業</th><th>屬性</th><th>帶/躺</th>'
+        + '<th class="num">表攻</th><th class="num">爆擊</th><th class="num">防禦</th><th class="num">終傷%</th>'
+        + '<th>主武</th><th>副武</th><th>防具</th><th class="num">戰力</th><th></th></tr>';
+    p.chars.forEach(c=>{
+      h += '<tr class="'+(c.active?'':'off')+'">'
+        + '<td><input type="checkbox" '+(c.active?'checked':'')+' data-a="cactive" data-p="'+p.id+'" data-c="'+c.id+'"></td>'
+        + '<td><input type="text" class="cn" value="'+esc(c.name)+'" data-a="name" data-p="'+p.id+'" data-c="'+c.id+'"></td>'
+        + '<td><select data-a="job" data-p="'+p.id+'" data-c="'+c.id+'">'+jobOpts(c.job)+'</select></td>'
+        + '<td><select data-a="elem" data-p="'+p.id+'" data-c="'+c.id+'">'+elemOpts(c.elem)+'</select></td>'
+        + '<td><select data-a="carry" data-p="'+p.id+'" data-c="'+c.id+'">'
+        +   '<option value="1"'+(c.carry?' selected':'')+'>帶</option>'
+        +   '<option value="0"'+(c.carry?'':' selected')+'>躺</option></select></td>'
+        + statCell(p,c,'atk','未填') + statCell(p,c,'crit','') + statCell(p,c,'def','') + statCell(p,c,'fd','')
+        + gearCell(p,c,'mw') + gearCell(p,c,'sw') + gearCell(p,c,'a')
+        + '<td class="num"><span class="pw '+(isEst(c)?'est':'')+'">'+powerOf(c)+(isEst(c)?' 估':'')+'</span></td>'
+        + '<td><button class="mini" data-a="delc" data-p="'+p.id+'" data-c="'+c.id+'">✕</button></td></tr>';
+    });
+    h += '</table></div>'
+       + '<div class="row" style="margin-top:8px">'
+       + '<input type="text" placeholder="新增角色名稱" data-a="newc" data-p="'+p.id+'">'
+       + '<button data-a="addc" data-p="'+p.id+'">＋角色</button></div>';
+    d.innerHTML=h; box.appendChild(d);
+  });
+  const sel=document.getElementById('whoMine');
+  sel.innerHTML=DB.people.map(p=>'<option>'+esc(p.name)+'</option>').join('');
+  document.getElementById('notice').innerHTML = storageOK ? ''
+    : '<div class="msg warn">這個開啟方式不能存檔（localStorage 被停用），改動關掉就沒了。</div>';
+}
+
+const rosterBox=document.getElementById('roster');
+rosterBox.addEventListener('change', onRoster);
+rosterBox.addEventListener('input',  e=>{ if(e.target.dataset.a==='name') onRoster(e,true); });
+rosterBox.addEventListener('click',  e=>{ const a=e.target.dataset.a; if(a==='delp'||a==='delc'||a==='addc') onRoster(e); });
+rosterBox.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.dataset.a==='newc'){ e.preventDefault(); addChar(e.target.dataset.p);} });
+
+function onRoster(e, quiet){
+  const t=e.target, a=t.dataset.a; if(!a) return;
+  const p=DB.people.find(x=>x.id===t.dataset.p); if(!p) return;
+  const c=t.dataset.c ? p.chars.find(x=>x.id===t.dataset.c) : null;
+  const num=()=>Math.max(0,+t.value||0);
+
+  if(a==='pactive') p.active=t.checked;
+  else if(a==='delp'){ if(!confirm('刪除「'+p.name+'」？')) return; DB.people=DB.people.filter(x=>x!==p); }
+  else if(a==='addc') return addChar(p.id);
+  else if(!c) return;
+  else if(a==='cactive') c.active=t.checked;
+  else if(a==='name'){ c.name=t.value; }
+  else if(a==='job'||a==='elem') c[a]=t.value;
+  else if(a==='carry') c.carry=t.value==='1';
+  else if(['atk','crit','def','fd','mwEnh','swEnh','aEnh'].includes(a)) c[a]=num();
+  else if(['mwTier','swTier','aTier'].includes(a)) c[a]=t.value;
+  else if(a==='delc') p.chars=p.chars.filter(x=>x!==c);
+  else return;
+
+  saveDB();
+  if(quiet) return;          // 打字時不要整個重畫，會失焦
+  renderRoster();
+}
+
+function addChar(pid){
+  const p=DB.people.find(x=>x.id===pid);
+  const inp=document.querySelector('input[data-a="newc"][data-p="'+pid+'"]');
+  const name=inp.value.trim(); if(!name) return inp.focus();
+  const t=DB.gear.tiers[DB.gear.tiers.length-1].k;
+  p.chars.push({id:nid(), name, job:DB.jobs.some(j=>j.name===name)?name:'', elem:'', carry:true, active:true,
+                atk:0,crit:0,def:0,fd:0, mwTier:t,mwEnh:0, swTier:t,swEnh:0, aTier:t,aEnh:0});
+  if(!DB.jobs.some(j=>j.name===name)) DB.jobs.push({name, base:'', elem:'', role:'', buffs:[], pct:0, note:''});
+  saveDB(); renderRoster(); renderJobs();
+  document.querySelector('input[data-a="newc"][data-p="'+pid+'"]').focus();
+}
+function addPerson(){
+  const inp=document.getElementById('newPerson');
+  const name=inp.value.trim(); if(!name) return inp.focus();
+  DB.people.push({id:nid(), name, active:true, free:true, potion:1, chars:[]});
+  inp.value=''; saveDB(); renderRoster();
+}
+
+/* ---------- 職業庫 ---------- */
+function renderJobs(){
+  let h='<tr><th class="n">職業</th><th class="n">系別</th><th class="n">屬性</th><th class="n">定位</th>'
+      + '<th>提供的隊伍 BUFF（逗號分隔）</th><th class="num">增傷%</th><th>備註</th><th></th></tr>';
+  DB.jobs.forEach((j,i)=>{
+    h+='<tr>'
+      +'<td class="n"><input type="text" value="'+esc(j.name)+'" data-j="'+i+'" data-f="name"></td>'
+      +'<td class="n"><input type="text" value="'+esc(j.base)+'" data-j="'+i+'" data-f="base" placeholder="劍士/弓/法/牧…"></td>'
+      +'<td class="n"><select data-j="'+i+'" data-f="elem">'+elemOpts(j.elem)+'</select></td>'
+      +'<td class="n"><select data-j="'+i+'" data-f="role"><option value=""></option>'
+      + ROLES.map(r=>'<option'+(r===j.role?' selected':'')+'>'+r+'</option>').join('')+'</select></td>'
+      +'<td><input type="text" value="'+esc((j.buffs||[]).join(','))+'" data-j="'+i+'" data-f="buffs" placeholder="例：增傷,破防,加速"></td>'
+      +'<td class="num"><input type="number" style="width:70px" value="'+(j.pct||'')+'" data-j="'+i+'" data-f="pct"></td>'
+      +'<td><input type="text" value="'+esc(j.note)+'" data-j="'+i+'" data-f="note"></td>'
+      +'<td><button class="mini" data-j="'+i+'" data-f="del">✕</button></td></tr>';
+  });
+  document.getElementById('jobs').innerHTML=h;
+
+  const blank=DB.jobs.filter(j=>!j.elem||!(j.buffs||[]).length).map(j=>j.name);
+  document.getElementById('jobwarn').innerHTML = blank.length
+    ? '<div class="msg warn">還沒填屬性或 BUFF 的職業：<b>'+esc(blank.join('、'))
+      +'</b>。沒填的話，分團只會照裝備戰力排，不會做屬性分團也不會給補位職業建議。</div>'
+    : '<div class="msg ok">職業庫已填完，分團頁可以做屬性分團與補位建議。</div>';
+}
+document.getElementById('jobs').addEventListener('change', onJob);
+document.getElementById('jobs').addEventListener('click', e=>{ if(e.target.dataset.f==='del') onJob(e); });
+function onJob(e){
+  const i=+e.target.dataset.j, f=e.target.dataset.f;
+  if(isNaN(i)||!f) return;
+  const j=DB.jobs[i];
+  if(f==='del'){ if(!confirm('刪除職業「'+j.name+'」？')) return; DB.jobs.splice(i,1); }
+  else if(f==='buffs') j.buffs=e.target.value.split(/[,、\s]+/).filter(Boolean);
+  else if(f==='pct')   j.pct=+e.target.value||0;
+  else if(f==='name'){
+    const old=j.name, nw=e.target.value.trim()||old;
+    DB.people.forEach(p=>p.chars.forEach(c=>{ if(c.job===old) c.job=nw; }));
+    j.name=nw;
+  }
+  else j[f]=e.target.value;
+  saveDB(); renderJobs(); renderRoster();
+}
+function addJob(){
+  const inp=document.getElementById('newJob');
+  const name=inp.value.trim(); if(!name) return inp.focus();
+  DB.jobs.push({name, base:'', elem:'', role:'', buffs:[], pct:0, note:''});
+  inp.value=''; saveDB(); renderJobs(); renderRoster();
+}
+
+/* ---------- 裝等 ---------- */
+function renderTiers(){
+  document.getElementById('tiers').innerHTML = DB.gear.tiers.map((t,i)=>
+    '<div class="row" style="margin-bottom:6px">'
+    +'<input type="text" style="width:100px" value="'+esc(t.k)+'" data-ti="'+i+'" data-tf="k">'
+    +'<input type="number" value="'+t.v+'" data-ti="'+i+'" data-tf="v">'
+    +'<button class="mini" data-ti="'+i+'" data-tf="del">✕</button></div>').join('');
+}
+document.getElementById('tiers').addEventListener('change', onTier);
+document.getElementById('tiers').addEventListener('click', e=>{ if(e.target.dataset.tf==='del') onTier(e); });
+function onTier(e){
+  const i=+e.target.dataset.ti, f=e.target.dataset.tf;
+  if(isNaN(i)||!f) return;
+  if(f==='del'){ if(DB.gear.tiers.length<=1) return; DB.gear.tiers.splice(i,1); }
+  else if(f==='k'){
+    const old=DB.gear.tiers[i].k, nw=e.target.value.trim()||old;
+    DB.gear.tiers[i].k=nw;
+    DB.people.forEach(p=>p.chars.forEach(c=>{
+      ['mwTier','swTier','aTier'].forEach(x=>{ if(c[x]===old) c[x]=nw; });
+    }));
+  } else DB.gear.tiers[i].v=+e.target.value||0;
+  saveDB(); renderTiers(); renderRoster();
+}
+function addTier(){
+  const k=document.getElementById('newTier').value.trim(); if(!k) return;
+  DB.gear.tiers.push({k, v:+document.getElementById('newTierVal').value||0});
+  document.getElementById('newTier').value='';
+  saveDB(); renderTiers(); renderRoster();
+}
+function setGear(){
+  DB.gear.wPer=+document.getElementById('wPer').value||0;
+  DB.gear.aPer=+document.getElementById('aPer').value||0;
+  saveDB(); renderRoster();
+}
+
+/* ---------- 資料交換 ---------- */
+const io=()=>document.getElementById('io');
+function doExportAll(){ io().value=exportJSON(); }
+function doExportMine(){ io().value=exportMine(document.getElementById('whoMine').value); }
+function doImportAll(){
+  if(!confirm('整份覆蓋目前資料？')) return;
+  try{ importJSON(io().value); redraw(); alert('匯入完成'); }
+  catch(e){ alert('JSON 有問題：'+e.message); }
+}
+function doMerge(){
+  try{ const n=mergePerson(io().value); redraw(); alert('合併了 '+n+' 個人'); }
+  catch(e){ alert('JSON 有問題：'+e.message); }
+}
+async function loadRepo(){
+  const txt=await fetchRepoRoster();
+  if(!txt){ alert('讀不到 data/roster.json。\n用 file:// 直接開檔會被瀏覽器擋，要放到 GitHub Pages 之類的 http(s) 網址才讀得到。'); return; }
+  if(!confirm('用 git 上的名單覆蓋你本機這份？')) return;
+  try{ importJSON(txt); redraw(); alert('已同步 git 上的名單'); }
+  catch(e){ alert('roster.json 有問題：'+e.message); }
+}
+
+function redraw(){ syncCfg(); renderRoster(); renderJobs(); renderTiers(); }
+redraw();
+</script>
+</body>
+</html>

@@ -1,0 +1,388 @@
+{
+  "people": [
+    {
+      "name": "雷電",
+      "active": true,
+      "free": true,
+      "potion": 1,
+      "chars": [
+        {
+          "name": "護士",
+          "job": "護士",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 0,
+          "swTier": "60A",
+          "swEnh": 0,
+          "aTier": "60A",
+          "aEnh": 0
+        },
+        {
+          "name": "月光",
+          "job": "月光",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 0,
+          "swTier": "60A",
+          "swEnh": 0,
+          "aTier": "60A",
+          "aEnh": 0
+        },
+        {
+          "name": "光輝",
+          "job": "光輝",
+          "elem": "",
+          "carry": false,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 0,
+          "swTier": "60A",
+          "swEnh": 0,
+          "aTier": "60A",
+          "aEnh": 0
+        }
+      ]
+    },
+    {
+      "name": "綠間",
+      "active": true,
+      "free": true,
+      "potion": 1,
+      "chars": [
+        {
+          "name": "毀滅",
+          "job": "毀滅",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 9,
+          "swTier": "60A",
+          "swEnh": 9,
+          "aTier": "60A",
+          "aEnh": 7
+        },
+        {
+          "name": "聖徒",
+          "job": "聖徒",
+          "elem": "",
+          "carry": false,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 0,
+          "swTier": "60A",
+          "swEnh": 0,
+          "aTier": "60A",
+          "aEnh": 0
+        }
+      ]
+    },
+    {
+      "name": "梅林",
+      "active": true,
+      "free": true,
+      "potion": 1,
+      "chars": [
+        {
+          "name": "時空",
+          "job": "時空",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 7,
+          "swTier": "60A",
+          "swEnh": 10,
+          "aTier": "60A",
+          "aEnh": 6
+        }
+      ]
+    },
+    {
+      "name": "地瓜",
+      "active": true,
+      "free": true,
+      "potion": 1,
+      "chars": [
+        {
+          "name": "劍鬥",
+          "job": "劍鬥",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 11,
+          "swTier": "60A",
+          "swEnh": 11,
+          "aTier": "60A",
+          "aEnh": 8
+        },
+        {
+          "name": "影舞",
+          "job": "影舞",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 6,
+          "swTier": "60A",
+          "swEnh": 6,
+          "aTier": "60B",
+          "aEnh": 6
+        }
+      ]
+    },
+    {
+      "name": "黃賴",
+      "active": true,
+      "free": true,
+      "potion": 1,
+      "chars": [
+        {
+          "name": "天弓",
+          "job": "天弓",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 0,
+          "swTier": "60A",
+          "swEnh": 0,
+          "aTier": "60A",
+          "aEnh": 0
+        },
+        {
+          "name": "狂戰",
+          "job": "狂戰",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "60A",
+          "mwEnh": 0,
+          "swTier": "60A",
+          "swEnh": 0,
+          "aTier": "60A",
+          "aEnh": 0
+        }
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "name": "護士",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "月光",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "光輝",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "毀滅",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "聖徒",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "時空",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "劍鬥",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "影舞",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "天弓",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "狂戰",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    }
+  ],
+  "dungeons": [
+    {
+      "key": "abp_h",
+      "name": "大主教 地獄",
+      "size": 4,
+      "req": 0
+    },
+    {
+      "key": "giant_h",
+      "name": "巨人 地獄",
+      "size": 4,
+      "req": 0
+    },
+    {
+      "key": "kim_n",
+      "name": "颱風金 普通",
+      "size": 4,
+      "req": 0
+    },
+    {
+      "key": "kim_h",
+      "name": "颱風金 地獄",
+      "size": 4,
+      "req": 0
+    },
+    {
+      "key": "sea",
+      "name": "海龍",
+      "size": 8,
+      "req": 0
+    },
+    {
+      "key": "green",
+      "name": "綠龍",
+      "size": 8,
+      "req": 0
+    },
+    {
+      "key": "desert",
+      "name": "沙龍",
+      "size": 8,
+      "req": 0
+    }
+  ],
+  "clears": {},
+  "gear": {
+    "tiers": [
+      {
+        "k": "50S",
+        "v": 100
+      },
+      {
+        "k": "50L",
+        "v": 130
+      },
+      {
+        "k": "60B",
+        "v": 170
+      },
+      {
+        "k": "60A",
+        "v": 210
+      },
+      {
+        "k": "70A",
+        "v": 260
+      }
+    ],
+    "wPer": 12,
+    "aPer": 5
+  },
+  "cfg": {
+    "mode": "save",
+    "teamSize": 4,
+    "minCarry": 2,
+    "autoFill": true,
+    "balance": true,
+    "resetDay": 4,
+    "useFd": true,
+    "useCrit": false,
+    "sameElem": true
+  }
+}

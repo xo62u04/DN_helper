@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>副本分團 — DN Helper</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .matrix td,.matrix th{text-align:center;padding:5px 8px}
+  .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
+  .matrix tr.alldone td.who{color:var(--ok)}
+  .matrix th.d{writing-mode:horizontal-tb;font-size:13.5px;line-height:1.25}
+  .dcard{border:1px solid var(--line);border-radius:9px;padding:14px;margin-bottom:14px;background:var(--panel2)}
+  .dhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .dhead .nm{font-size:19px;font-weight:700}
+  .dhead .sz{font-size:14px;color:var(--dim)}
+  .teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;margin-top:10px}
+  .team{border:1px solid var(--line);border-radius:8px;padding:11px;background:var(--panel)}
+  .team.short{border-color:var(--warn)}
+  .thead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+         padding-bottom:7px;margin-bottom:7px;border-bottom:1px solid var(--line)}
+  .thead b{font-size:17px}
+  .thead span{font-size:14px;color:var(--dim)}
+  .slot{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:16px}
+  .slot .who{width:56px;color:var(--dim);font-size:14px;flex:none}
+  .slot .ch{flex:1;font-weight:600}
+  .slot .pw{color:var(--pow);font-size:13.5px}
+  .slot.open{color:var(--dim);font-style:italic}
+  .rec{margin-top:8px;padding:8px 10px;border:1px dashed var(--line);border-radius:6px;font-size:14px;color:var(--dim)}
+  .rec b{color:var(--txt)}
+  .gap{margin-top:8px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="nav"></div>
+
+<div class="wrap">
+  <div id="notice"></div>
+
+  <div class="panel">
+    <h2>本週通關紀錄</h2>
+    <div class="row" style="margin-bottom:10px">
+      <span class="hint">目前週期：<b id="curweek"></b>（每 <b id="rd"></b> 重置，可在角色資料頁改）</span>
+      <button onclick="resetAll()">清空本週紀錄</button>
+      <button onclick="fillAll(true)">全部標已打</button>
+      <button onclick="fillAll(false)">全部標沒打</button>
+    </div>
+    <div style="overflow-x:auto"><table class="matrix" id="matrix"></table></div>
+    <p class="hint" style="margin:10px 0 0">打完就點一下。分團時<b>只會排還沒打的角色</b>，全部打完的那一列會變綠色。</p>
+  </div>
+
+  <div class="panel">
+    <h2>分團表</h2>
+    <div class="row" style="margin-bottom:12px">
+      <button class="primary" onclick="genAll()">產生全部分團</button>
+      <label><input type="checkbox" id="sameElem"> 同屬性優先同團</label>
+      <span class="hint">「建議戰力」是每人平均，填了才會算裝備缺口；不知道就先留 0。</span>
+    </div>
+    <div id="out"></div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
+const WD=['週日','週一','週二','週三','週四','週五','週六'];
+document.getElementById('curweek').textContent = curWeek()+' 起';
+document.getElementById('rd').textContent = WD[DB.cfg.resetDay];
+document.getElementById('sameElem').checked = DB.cfg.sameElem;
+document.getElementById('sameElem').addEventListener('change', e=>{
+  DB.cfg.sameElem=e.target.checked; saveDB(); genAll();
+});
+document.getElementById('notice').innerHTML = storageOK ? ''
+  : '<div class="msg warn">這個開啟方式不能存檔（localStorage 被停用），勾的紀錄關掉就沒了。</div>';
+
+/* ================= 通關矩陣 ================= */
+function renderMatrix(){
+  const rows=allChars(true);
+  let h='<tr><th class="who">成員 · 角色</th>'
+      + DB.dungeons.map(d=>'<th class="d">'+esc(d.name)+'<br><span class="hint">'+d.size+'人</span></th>').join('')
+      + '<th class="num">戰力</th></tr>';
+  rows.forEach(function(r){
+    const done=DB.dungeons.every(d=>isCleared(r.c.id,d.key));
+    const el=elemOf(r.c);
+    h+='<tr class="'+(done?'alldone':'')+'"><td class="who">'+esc(r.p.name)+' · <b>'+esc(r.c.name)+'</b>'
+      + (el?' <span class="tag e-'+el+'">'+el+'</span>':'')
+      + ' <span class="tag '+(r.c.carry?'t-carry':'t-leech')+'">'+(r.c.carry?'帶':'躺')+'</span></td>';
+    DB.dungeons.forEach(function(d){
+      h+='<td><input type="checkbox" '+(isCleared(r.c.id,d.key)?'checked':'')
+        +' data-c="'+r.c.id+'" data-d="'+d.key+'"></td>';
+    });
+    h+='<td class="num">'+powerOf(r.c)+'</td></tr>';
+  });
+  document.getElementById('matrix').innerHTML=h;
+}
+document.getElementById('matrix').addEventListener('change', function(e){
+  const cid=e.target.dataset.c, dk=e.target.dataset.d;
+  if(!cid||!dk) return;
+  setCleared(cid,dk,e.target.checked);
+  renderMatrix(); genAll();
+});
+function resetAll(){ if(!confirm('清空本週所有通關紀錄？')) return; resetWeek(); renderMatrix(); genAll(); }
+function fillAll(v){
+  allChars(true).forEach(r=>DB.dungeons.forEach(d=>setCleared(r.c.id,d.key,v)));
+  renderMatrix(); genAll();
+}
+
+/* ================= 分團演算法 ================= */
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
+
+// pending: [{p,c}]，size: 4 或 8
+// 規則：同一團不能有同一個人的兩隻角色；盡量同屬性同團；各團戰力盡量平均
+function buildTeams(pending, size){
+  if(!pending.length) return [];
+  const byPerson={};
+  pending.forEach(function(r){ (byPerson[r.p.id]=byPerson[r.p.id]||{p:r.p,list:[]}).list.push(r.c); });
+  const people=Object.keys(byPerson).map(k=>byPerson[k]);
+  const cap=Math.min(size,people.length);                 // 一團最多塞得下幾個「自己人」
+  const R=Math.max(Math.ceil(pending.length/cap), Math.max.apply(null,people.map(x=>x.list.length)));
+
+  let best=null;
+  for(let it=0; it<800; it++){
+    const rounds=Array.from({length:R},()=>({slots:[],pids:new Set()}));
+    const order=shuffle(people.slice()).sort((a,b)=>b.list.length-a.list.length);
+    order.forEach(function(x){
+      const cs=shuffle(x.list.slice());
+      // 集中裝填：優先把前面的團塞滿，這樣才會出現「我們 5 個人 + 補 3 個」的團，
+      // 而不是每團都缺一半人。總外援人數一樣，但缺人的團會集中在後面。
+      const pick=shuffle(rounds.map((_,i)=>i))
+        .sort((a,b)=>(rounds[b].slots.length-rounds[a].slots.length) || (a-b))
+        .filter(i=>rounds[i].slots.length<cap)
+        .slice(0,cs.length);
+      cs.forEach((c,k)=>{ const r=rounds[pick[k]]; if(!r) return; r.slots.push({p:x.p,c:c}); r.pids.add(x.p.id); });
+    });
+    const sc=scoreTeams(rounds,size);
+    if(!best||sc<best.sc) best={rounds,sc};
+  }
+  return best.rounds.map(r=>r.slots);
+}
+function scoreTeams(rounds,size){
+  const avgs=[]; let mix=0, spread=0;
+  rounds.forEach(function(r){
+    const els={}; let has=0;
+    r.slots.forEach(function(s){ const e=elemOf(s.c); if(e){ els[e]=1; has++; } });
+    if(DB.cfg.sameElem&&has) mix += Object.keys(els).length-1;
+    avgs.push(r.slots.length ? r.slots.reduce((n,s)=>n+powerOf(s.c),0)/r.slots.length : 0);
+  });
+  const mean=avgs.reduce((a,b)=>a+b,0)/(avgs.length||1);
+  spread = (avgs.length>1&&mean>0) ? (Math.max.apply(null,avgs)-Math.min.apply(null,avgs))/mean : 0;
+  // 團數少 > 屬性一致 > 戰力平均
+  return mix*1000 + spread*300 + rounds.reduce((n,r)=>n+Math.max(0,size-r.slots.length),0);
+}
+
+/* ---- 補位建議：算這團缺哪些 BUFF / 定位，再從職業庫挑人 ---- */
+function jobDbReady(){ return DB.jobs.some(j=>(j.buffs||[]).length||j.elem); }
+function recommend(slots, openCount){
+  if(!openCount) return '';
+  if(!jobDbReady()){
+    return '<div class="rec">還缺 <b>'+openCount+'</b> 個位子。'
+      + '<b>職業庫還沒填 BUFF 和屬性</b>，我沒辦法給你們這個版本的具體職業建議 —— '
+      + '去「角色資料」頁把職業庫填一填（每個職業給什麼 BUFF、什麼屬性），這裡就會自動算缺什麼、該找誰。'
+      + '<br>先給通用原則：外援 3 個位子至少留 <b>1 個補</b>、<b>1 個能扛/拉怪</b>，剩下 1 個補團隊最缺的增傷 BUFF。</div>';
+  }
+  // 這個版本「有人提供」的 BUFF 全集
+  const universe={}; DB.jobs.forEach(j=>(j.buffs||[]).forEach(b=>universe[b]=1));
+  const have={}, roles={}; const elems={};
+  slots.forEach(function(s){
+    buffsOf(s.c).forEach(b=>have[b]=1);
+    const r=roleOf(s.c); if(r) roles[r]=(roles[r]||0)+1;
+    const e=elemOf(s.c); if(e) elems[e]=(elems[e]||0)+1;
+  });
+  const missBuff=Object.keys(universe).filter(b=>!have[b]);
+  const missRole=['補師','坦'].filter(r=>!roles[r]);
+  const mainElem=Object.keys(elems).sort((a,b)=>elems[b]-elems[a])[0]||'';
+
+  const scored=DB.jobs.map(function(j){
+    let s=0;
+    (j.buffs||[]).forEach(b=>{ if(missBuff.indexOf(b)>=0) s+=3; });
+    if(missRole.indexOf(j.role)>=0) s+=5;
+    if(mainElem&&j.elem===mainElem) s+=2;
+    s += (+j.pct||0)/20;
+    return {j:j, s:s};
+  }).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
+
+  const picks=scored.slice(0,openCount);
+  let h='<div class="rec">還缺 <b>'+openCount+'</b> 個位子。';
+  if(missRole.length) h+=' 目前團裡沒有：<b>'+esc(missRole.join('、'))+'</b>。';
+  if(missBuff.length) h+=' 缺的 BUFF：<b>'+esc(missBuff.join('、'))+'</b>。';
+  if(mainElem)        h+=' 這團主屬性是 <b>'+mainElem+'</b>，外援優先找同屬性。';
+  h += picks.length
+    ? '<br>建議找：' + picks.map(x=>'<b>'+esc(x.j.name)+'</b>'
+        +(x.j.elem?'（'+x.j.elem+(x.j.role?'·'+x.j.role:'')+'）':'')).join('、')
+    : '<br>職業庫裡沒有能補上這些缺口的職業，可能是 BUFF 欄還沒填完。';
+  return h+'</div>';
+}
+
+/* ---- 裝備缺口 ---- */
+// +1 強化在「戰力」尺度上大約值多少：裝等分×表攻換算比例
+function perEnh(){ return DB.gear.wPer * atkRatio(); }
+function gapReport(slots, size, req){
+  if(!req) return '<div class="gap hint">沒填建議戰力，跳過裝備檢查。</div>';
+  const need=req*size;
+  const mine=slots.reduce((n,s)=>n+powerOf(s.c),0);
+  const open=size-slots.length;
+  const total=mine+open*req;                 // 外援先當作剛好達標
+  if(total>=need)
+    return '<div class="gap" style="color:var(--ok)">戰力夠：'+Math.round(total)+' / 需要 '+Math.round(need)
+         +'（外援以每人 '+req+' 估）。</div>';
+  const short=need-total;
+  const weak=slots.slice().sort((a,b)=>powerOf(a.c)-powerOf(b.c)).slice(0,2)
+    .map(s=>esc(s.p.name)+'·'+esc(s.c.name)+'（'+powerOf(s.c)+'）');
+  const pe=perEnh();
+  const enh=pe>0 ? Math.ceil(short/pe) : 0;
+  let h='<div class="gap" style="color:var(--warn)">戰力不足：'+Math.round(total)+' / 需要 '+Math.round(need)
+      + '，差 <b>'+Math.round(short)+'</b>（'+Math.round(short/need*100)+'%）。</div>'
+      + '<div class="gap hint">補法（擇一或混用）：'
+      + '<br>① 最拖的是 '+weak.join('、')+'，優先升這幾隻。'
+      + (enh? '<br>② 全團合計再堆約 <b>+'+enh+' 級強化</b>（或等值換裝）就補得上；'
+             +'平均分下來每隻約 +'+Math.max(1,Math.ceil(enh/Math.max(1,slots.length)))+' 級。':'')
+      + '<br>③ 外援門檻拉高：若外援每人有 <b>'+Math.ceil((need-mine)/Math.max(1,open))+'</b> 戰力，這團就過得去。'
+      + '<br>④ 真的補不上就先打普通難度累積裝，或把最強的幾隻集中在同一團先過，其他團下週再排。</div>';
+  return h;
+}
+
+/* ================= 產生分團 ================= */
+function genAll(){
+  const out=document.getElementById('out'); out.innerHTML='';
+  DB.dungeons.forEach(function(d){
+    const pending=allChars(true).filter(r=>!isCleared(r.c.id,d.key));
+    const teams=buildTeams(pending,d.size);
+    const div=document.createElement('div');
+    div.className='dcard';
+    let h='<div class="dhead"><span class="nm">'+esc(d.name)+'</span>'
+        + '<span class="sz">'+d.size+' 人本</span>'
+        + '<label class="hint">建議戰力/人</label>'
+        + '<input type="number" value="'+(d.req||0)+'" data-dk="'+d.key+'" style="width:100px">'
+        + '<span class="hint">待打 '+pending.length+' 隻 · 需要 '+teams.length+' 團 · 合計要找 '
+        + teams.reduce((n,s)=>n+Math.max(0,d.size-s.length),0) + ' 個外援</span></div>';
+    if(!pending.length){
+      h+='<div class="msg ok">本週全部打完了。</div>';
+    }else{
+      h+='<div class="teams">';
+      teams.forEach(function(slots,i){
+        const open=Math.max(0,d.size-slots.length);
+        const tp=slots.reduce((n,s)=>n+powerOf(s.c),0);
+        const els={}; slots.forEach(s=>{const e=elemOf(s.c); if(e) els[e]=(els[e]||0)+1;});
+        const elTag=Object.keys(els).map(e=>'<span class="tag e-'+e+'">'+e+' '+els[e]+'</span>').join(' ');
+        h+='<div class="team '+(open?'short':'')+'">'
+          +'<div class="thead"><b>第 '+(i+1)+' 團</b>'
+          +'<span>'+slots.length+'/'+d.size+' 人 · 戰力 '+tp+' '+elTag+'</span></div>';
+        slots.forEach(function(s){
+          const e=elemOf(s.c), r=roleOf(s.c);
+          h+='<div class="slot"><span class="who">'+esc(s.p.name)+'</span>'
+            +'<span class="ch">'+esc(s.c.name)+'</span>'
+            +(e?'<span class="tag e-'+e+'">'+e+'</span>':'')
+            +(r?'<span class="tag t-late">'+esc(r)+'</span>':'')
+            +'<span class="pw">'+powerOf(s.c)+'</span></div>';
+        });
+        for(let k=0;k<open;k++) h+='<div class="slot open">— 待補外援 —</div>';
+        h+=recommend(slots,open)+gapReport(slots,d.size,+d.req||0)+'</div>';
+      });
+      h+='</div>';
+    }
+    div.innerHTML=h; out.appendChild(div);
+  });
+}
+document.getElementById('out').addEventListener('change', function(e){
+  const dk=e.target.dataset.dk; if(!dk) return;
+  const d=DB.dungeons.find(x=>x.key===dk); if(!d) return;
+  d.req=Math.max(0,+e.target.value||0); saveDB(); genAll();
+});
+
+renderMatrix(); genAll();
+</script>
+</body>
+</html>

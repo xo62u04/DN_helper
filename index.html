@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>深淵分隊 — DN Helper</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .cols{display:grid;grid-template-columns:minmax(300px,360px) 1fr;gap:18px;align-items:start}
+  @media(max-width:1050px){.cols{grid-template-columns:1fr}}
+  .person{border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden}
+  .person.off{opacity:.42}
+  .phead{display:flex;align-items:center;gap:9px;padding:9px 11px;background:var(--panel2)}
+  .phead .nm{font-weight:700;flex:1;font-size:18px}
+  button.free{font-size:14px;font-weight:700;padding:3px 11px;border-width:2px}
+  button.free.yes{color:var(--ok);border-color:var(--ok)}
+  button.free.no{color:var(--warn);border-color:var(--warn)}
+  .pbody{padding:6px 11px 10px}
+  .char{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:16px}
+  .char .cn{flex:1}
+  .char.off .cn{text-decoration:line-through;color:var(--dim)}
+  .char .pw{color:var(--pow);font-size:13.5px}
+  .char .pw.est{color:var(--dim)}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .toolbar .grp{display:flex;gap:8px;align-items:center;background:var(--panel2);
+                border:1px solid var(--line);border-radius:6px;padding:5px 11px;font-size:15px}
+  .rounds{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:13px}
+  .round{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:13px}
+  .round.bad{border-color:var(--warn)}
+  .rhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+         margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .rhead b{font-size:18px}
+  .rhead .st{font-size:14px;color:var(--dim);text-align:right;flex:1}
+  .rhead .st .p{color:var(--pow)}
+  .slot{display:flex;align-items:center;gap:8px;padding:5px 7px;font-size:17px;
+        border-radius:6px;cursor:pointer;border:2px solid transparent}
+  .slot:hover{background:#2c3242}
+  .slot.sel{background:#1e2c4a;border-color:var(--acc)}
+  .slot.no{opacity:.28}
+  .slot .who{width:56px;color:var(--dim);font-size:15px;flex:none}
+  .slot .ch{flex:1;font-weight:600}
+  .slot .pw{color:var(--pow);font-size:13.5px;flex:none}
+  .slot .pw.est{color:var(--dim)}
+  .empty{color:var(--dim);font-style:italic;padding:5px 7px;font-size:15px;
+         border:2px dashed var(--line);border-radius:6px;margin:4px 0;cursor:pointer}
+  .empty:hover{border-color:var(--acc);color:var(--acc)}
+  .empty.no{opacity:.28}
+  .picker{border:1px solid var(--acc);border-radius:6px;padding:8px;margin:6px 0;max-height:240px;overflow:auto}
+  .picker button{display:block;width:100%;text-align:left;margin-bottom:4px;font-size:14px;padding:4px 8px}
+  .summary{margin-bottom:12px;font-size:16px}
+  .summary .k{color:var(--dim)}
+  .summary b{color:var(--acc);font-size:18px}
+  td.over{color:var(--warn);font-weight:700}
+</style>
+</head>
+<body>
+<div id="nav"></div>
+
+<div class="wrap">
+  <div id="notice"></div>
+  <div class="cols">
+
+    <div class="panel">
+      <h2>今天誰能打</h2>
+      <div class="row" style="margin-bottom:10px">
+        <button onclick="setAllFree(true)">全部有空</button>
+        <button onclick="setAllFree(false)">全部沒空</button>
+      </div>
+      <div id="roster"></div>
+      <p class="hint" style="margin:10px 0 0">
+        <span style="color:var(--ok)">有空</span>／<span style="color:var(--warn)">沒空</span>＝優先序：
+        有空的往前面的隊伍排、沒空的往後面排，<b>兩種都會把角色打滿</b>。
+        <span style="color:var(--potion)">水</span>＝最多吃幾瓶疲勞水。
+        角色、裝備、表攻請到 <a href="roster.html">角色資料</a> 頁編輯。
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>分隊結果</h2>
+      <div class="toolbar">
+        <button class="primary" onclick="run()">自動分隊</button>
+        <div class="grp"><label for="mode">模式</label>
+          <select id="mode" onchange="setCfg()">
+            <option value="save">省水：湊不滿才喝</option>
+            <option value="all">全部喝水：每人吃滿</option>
+          </select></div>
+        <div class="grp"><label for="teamSize">每隊人數</label><input type="number" id="teamSize" min="1" max="8" style="width:64px" onchange="setCfg()"></div>
+        <div class="grp"><label for="minCarry">最少帶</label><input type="number" id="minCarry" min="0" max="4" style="width:60px" onchange="setCfg()"></div>
+        <div class="grp"><label><input type="checkbox" id="autoFill" onchange="setCfg()"> 吃水補滿</label></div>
+        <div class="grp"><label><input type="checkbox" id="balance" onchange="setCfg()"> 平衡戰力</label></div>
+        <button onclick="addTeam()">＋加一隊</button>
+      </div>
+      <div id="out"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById('nav').innerHTML = navBar('index.html','SEA 經典服 · PC');
+document.getElementById('notice').innerHTML = storageOK ? ''
+  : '<div class="msg warn">這個開啟方式不能存檔（localStorage 被停用），改動關掉就沒了。</div>';
+
+const TKEY='dn_helper_abyss_teams';
+let teams=[]; let sel=null; let picking=null;
+try{ teams=JSON.parse(LS.get(TKEY))||[]; }catch(e){ teams=[]; }
+const saveTeams = () => LS.set(TKEY, JSON.stringify(teams));
+
+/* ---------------- 左欄 ---------------- */
+function renderRoster(){
+  POWCACHE=null;
+  const box=document.getElementById('roster'); box.innerHTML='';
+  DB.people.forEach(function(p){
+    const el=document.createElement('div');
+    el.className='person'+(p.active?'':' off');
+    let h='<div class="phead">'
+      +'<input type="checkbox" '+(p.active?'checked':'')+' data-a="pactive" data-p="'+p.id+'" title="列入名單">'
+      +'<span class="nm">'+esc(p.name)+'</span>'
+      +'<button class="free '+(p.free?'yes':'no')+'" data-a="free" data-p="'+p.id+'">'+(p.free?'有空':'沒空')+'</button>'
+      +'<span class="hint">水</span>'
+      +'<input type="number" min="0" max="5" style="width:56px" value="'+p.potion+'" data-a="potion" data-p="'+p.id+'">'
+      +'</div><div class="pbody">';
+    h += p.chars.length ? p.chars.map(function(c){
+      return '<div class="char '+(c.active?'':'off')+'">'
+        +'<input type="checkbox" '+(c.active?'checked':'')+' data-a="cactive" data-p="'+p.id+'" data-c="'+c.id+'">'
+        +'<span class="cn">'+esc(c.name)+'</span>'
+        +'<span class="tag '+(c.carry?'t-carry':'t-leech')+'">'+(c.carry?'帶':'躺')+'</span>'
+        +'<span class="pw '+(isEst(c)?'est':'')+'">'+powerOf(c)+'</span></div>';
+    }).join('') : '<p class="hint">還沒有角色</p>';
+    el.innerHTML=h+'</div>';
+    box.appendChild(el);
+  });
+}
+const rb=document.getElementById('roster');
+rb.addEventListener('change', onRoster);
+rb.addEventListener('click', function(e){ if(e.target.dataset.a==='free') onRoster(e); });
+function onRoster(e){
+  const t=e.target, a=t.dataset.a; if(!a) return;
+  const p=DB.people.find(x=>x.id===t.dataset.p); if(!p) return;
+  const c=t.dataset.c ? p.chars.find(x=>x.id===t.dataset.c) : null;
+  if(a==='pactive') p.active=t.checked;
+  else if(a==='free') p.free=!p.free;
+  else if(a==='potion') p.potion=Math.max(0,+t.value||0);
+  else if(a==='cactive'&&c) c.active=t.checked;
+  else return;
+  saveDB(); renderRoster(); renderTeams();
+}
+function setAllFree(v){ DB.people.forEach(p=>p.free=v); saveDB(); renderRoster(); }
+function syncCfgUI(){
+  document.getElementById('mode').value=DB.cfg.mode||'save';
+  document.getElementById('teamSize').value=DB.cfg.teamSize;
+  document.getElementById('minCarry').value=DB.cfg.minCarry;
+  document.getElementById('autoFill').checked=DB.cfg.autoFill;
+  document.getElementById('balance').checked=DB.cfg.balance;
+}
+function setCfg(){
+  DB.cfg.mode=document.getElementById('mode').value;
+  DB.cfg.teamSize=Math.max(1,+document.getElementById('teamSize').value||4);
+  DB.cfg.minCarry=Math.max(0,+document.getElementById('minCarry').value||0);
+  DB.cfg.autoFill=document.getElementById('autoFill').checked;
+  DB.cfg.balance=document.getElementById('balance').checked;
+  saveDB(); renderTeams();
+}
+
+/* ---------------- 演算法 ---------------- */
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
+const carriesIn = t => t.slots.reduce((n,s)=>n+(s.carry?1:0),0);
+
+// 同一隻角色第二次以後出場 = 吃疲勞水
+function normalize(list){
+  const seen={};
+  list.forEach(t=>t.slots.forEach(function(s){
+    const k=s.pid+'/'+s.cid; s.potion=!!seen[k]; seen[k]=1;
+  }));
+  return list;
+}
+// 這個人今天要出場幾次：角色各一次，「全部喝水」模式再加上吃水的額外輪次
+function runsOf(p, allWater){
+  const runs=p.chars.slice();
+  if(allWater && p.potion>0){
+    const cs=p.chars.filter(c=>c.carry).sort((a,b)=>powerOf(b)-powerOf(a));
+    for(let k=0;k<p.potion && cs.length;k++) runs.push(cs[k%cs.length]);
+  }
+  p.extras = runs.length - p.chars.length;
+  return runs;
+}
+function attempt(people,R,cap){
+  const rounds=Array.from({length:R},(_,i)=>({idx:i,slots:[],persons:new Set()}));
+  const put=(r,p,c)=>{ r.slots.push({pid:p.id,cid:c.id,person:p.name,char:c.name,
+                                     carry:c.carry,busy:!!p.busy,potion:false}); r.persons.add(p.id); };
+  const order=shuffle(people.slice()).sort((a,b)=>b.runs.length-a.runs.length);
+  order.forEach(function(p){
+    const chars=shuffle(p.runs.slice()).sort((a,b)=>(b.carry?1:0)-(a.carry?1:0));
+    const picked=shuffle(rounds.map((_,i)=>i))
+      .sort((a,b)=>rounds[a].slots.length-rounds[b].slots.length || (p.busy? b-a : a-b))
+      .slice(0,chars.length)
+      .sort((a,b)=>carriesIn(rounds[a])-carriesIn(rounds[b]));
+    chars.forEach((c,k)=>put(rounds[picked[k]],p,c));
+  });
+  return rounds;
+}
+function repairCarry(rounds,minCarry){
+  for(let pass=0;pass<40;pass++){
+    const need=rounds.filter(r=>carriesIn(r)<minCarry);
+    if(!need.length) return;
+    let moved=false;
+    for(const d of need){
+      const donors=rounds.filter(r=>r!==d&&carriesIn(r)>minCarry);
+      outer:
+      for(const s of donors){
+        for(const sc of s.slots.filter(x=>x.carry&&!d.persons.has(x.pid))){
+          for(const dc of d.slots.filter(x=>!x.carry&&!s.persons.has(x.pid))){
+            s.slots[s.slots.indexOf(sc)]=dc; s.persons.delete(sc.pid); s.persons.add(dc.pid);
+            d.slots[d.slots.indexOf(dc)]=sc; d.persons.delete(dc.pid); d.persons.add(sc.pid);
+            moved=true; break outer;
+          }
+        }
+      }
+    }
+    if(!moved) return;
+  }
+}
+function fillSeats(rounds,people,cap,used){
+  const carryPeople=people.filter(p=>p.chars.some(c=>c.carry));
+  const runs={};
+  rounds.forEach(r=>r.slots.forEach(s=>{ runs[s.pid+'/'+s.cid]=(runs[s.pid+'/'+s.cid]||0)+1; }));
+  rounds.slice().sort((a,b)=>a.slots.length-b.slots.length).forEach(function(r){
+    const late = r.idx >= (rounds.length-1)/2;
+    while(r.slots.length<cap){
+      const cands=carryPeople
+        .filter(p=>!r.persons.has(p.id)&&(used.get(p.id)||0)<p.potion)
+        .sort((a,b)=>(!!a.busy===late?0:1)-(!!b.busy===late?0:1)
+                  || (used.get(a.id)||0)-(used.get(b.id)||0) || b.potion-a.potion || Math.random()-.5);
+      if(!cands.length) break;
+      const p=cands[0];
+      const c=p.chars.filter(x=>x.carry)
+        .sort((a,b)=>(runs[p.id+'/'+a.id]||0)-(runs[p.id+'/'+b.id]||0))[0];
+      r.slots.push({pid:p.id,cid:c.id,person:p.name,char:c.name,carry:true,busy:!!p.busy,potion:true});
+      r.persons.add(p.id);
+      used.set(p.id,(used.get(p.id)||0)+1);
+      runs[p.id+'/'+c.id]=(runs[p.id+'/'+c.id]||0)+1;
+    }
+  });
+}
+function scoreOf(rounds,cap,minCarry,balance,pw){
+  const last=rounds.length-1;
+  let bad=0,empty=0,potions=0,prio=0; const avgs=[];
+  rounds.forEach(function(r,i){
+    if(carriesIn(r)<minCarry) bad++;
+    empty+=Math.max(0,cap-r.slots.length);
+    potions+=r.slots.filter(s=>s.potion).length;
+    r.slots.forEach(s=>{ prio += s.busy ? (last-i) : i; });
+    avgs.push(r.slots.length ? r.slots.reduce((n,s)=>n+(pw[s.pid+'/'+s.cid]||0),0)/r.slots.length : 0);
+  });
+  const spread=avgs.length>1?Math.max.apply(null,avgs)-Math.min.apply(null,avgs):0;
+  const mean=avgs.reduce((a,b)=>a+b,0)/(avgs.length||1);
+  const rel=mean>0?spread/mean:0;
+  return {value: bad*1e7 + empty*1e4 + (balance?rel*3000:0) + prio*10 + potions,
+          bad, empty, potions, prio, spread:Math.round(spread)};
+}
+function solve(){
+  const cfg=DB.cfg, allWater=cfg.mode==='all';
+  const people=DB.people.filter(p=>p.active)
+    .map(p=>({id:p.id,name:p.name,potion:p.potion,busy:!p.free,chars:p.chars.filter(c=>c.active)}))
+    .filter(p=>p.chars.length);
+  if(!people.length) return null;
+  people.forEach(p=>{ p.runs=runsOf(p,allWater); });
+  const N=people.reduce((s,p)=>s+p.runs.length,0);
+  if(!N) return null;
+  const pw={}; people.forEach(p=>p.chars.forEach(c=>{ pw[p.id+'/'+c.id]=powerOf(c); }));
+  const cap=Math.min(cfg.teamSize,people.length);
+  const R=Math.max(Math.ceil(N/cap), Math.max.apply(null,people.map(p=>p.runs.length)));
+  let best=null;
+  for(let i=0;i<1200;i++){
+    const rounds=attempt(people,R,cap);
+    const used=new Map(people.map(p=>[p.id,p.extras||0]));
+    repairCarry(rounds,cfg.minCarry);
+    if(cfg.autoFill) fillSeats(rounds,people,cap,used);
+    repairCarry(rounds,cfg.minCarry);
+    const sc=scoreOf(rounds,cap,cfg.minCarry,cfg.balance,pw);
+    if(!best||sc.value<best.sc.value) best={rounds,sc};
+  }
+  return best.rounds.map(r=>({slots:r.slots}));
+}
+function run(){
+  POWCACHE=null;
+  const r=solve();
+  if(!r){ document.getElementById('out').innerHTML='<div class="msg warn">目前沒有勾選任何可出戰的角色。</div>'; return; }
+  teams=normalize(r); sel=null; picking=null; saveTeams(); renderTeams();
+}
+
+/* ---------------- 手動調整 ---------------- */
+function canSwap(at,ai,bt,bi){
+  if(at===bt) return true;
+  const A=teams[at].slots[ai], B=teams[bt].slots[bi];
+  return !teams[at].slots.some((s,k)=>k!==ai&&s.pid===B.pid)
+      && !teams[bt].slots.some((s,k)=>k!==bi&&s.pid===A.pid);
+}
+function canMove(at,ai,bt){
+  if(at===bt) return true;
+  return !teams[bt].slots.some(s=>s.pid===teams[at].slots[ai].pid);
+}
+function addTeam(){ teams.push({slots:[]}); sel=null; picking=null; saveTeams(); renderTeams(); }
+function delTeam(t){
+  if(teams[t].slots.length && !confirm('刪除第 '+(t+1)+' 隊？')) return;
+  teams.splice(t,1); sel=null; picking=null; normalize(teams); saveTeams(); renderTeams();
+}
+function delSlot(t,i){ teams[t].slots.splice(i,1); sel=null; normalize(teams); saveTeams(); renderTeams(); }
+function clickSlot(t,i){
+  picking=null;
+  if(!sel){ sel={t,i}; renderTeams(); return; }
+  if(sel.t===t&&sel.i===i){ sel=null; renderTeams(); return; }
+  if(!canSwap(sel.t,sel.i,t,i)){ toast('換不了：會讓同一個人在同一隊出現兩次。'); return; }
+  const A=teams[sel.t].slots[sel.i];
+  teams[sel.t].slots[sel.i]=teams[t].slots[i]; teams[t].slots[i]=A;
+  sel=null; normalize(teams); saveTeams(); renderTeams();
+}
+function clickEmpty(t){
+  if(sel){
+    if(!canMove(sel.t,sel.i,t)){ toast('移不過去：會讓同一個人在同一隊出現兩次。'); return; }
+    const A=teams[sel.t].slots.splice(sel.i,1)[0];
+    teams[t].slots.push(A); sel=null; normalize(teams); saveTeams(); renderTeams(); return;
+  }
+  picking = picking===t ? null : t; renderTeams();
+}
+function addSlot(t,pid,cid){
+  const f=findChar(pid,cid); if(!f.p||!f.c) return;
+  teams[t].slots.push({pid:pid,cid:cid,person:f.p.name,char:f.c.name,
+                       carry:f.c.carry,busy:!f.p.free,potion:false});
+  picking=null; normalize(teams); saveTeams(); renderTeams();
+}
+let toastTimer=null;
+function toast(msg){
+  const el=document.getElementById('toast'); if(!el) return;
+  el.innerHTML=msg; el.style.display='block';
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{el.style.display='none';},3500);
+}
+
+/* ---------------- 輸出 ---------------- */
+const slotPower = s => { const f=findChar(s.pid,s.cid); return f.c?powerOf(f.c):0; };
+const slotEst   = s => { const f=findChar(s.pid,s.cid); return isEst(f.c); };
+const teamPower = t => t.slots.reduce((n,s)=>n+slotPower(s),0);
+
+function renderTeams(){
+  POWCACHE=null;
+  const out=document.getElementById('out');
+  if(!teams.length){ out.innerHTML='<p class="hint">按「自動分隊」開始，或用「＋加一隊」自己排。</p>'; return; }
+  const cap=DB.cfg.teamSize, minCarry=DB.cfg.minCarry;
+  const totalSlots=teams.reduce((n,t)=>n+t.slots.length,0);
+  const potions=teams.reduce((n,t)=>n+t.slots.filter(s=>s.potion).length,0);
+  const full=teams.filter(t=>t.slots.length===cap).length;
+  const badTeams=teams.filter(t=>carriesIn(t)<minCarry).length;
+  const emptySeats=teams.reduce((n,t)=>n+Math.max(0,cap-t.slots.length),0);
+  const avgs=teams.filter(t=>t.slots.length).map(t=>teamPower(t)/t.slots.length);
+  const spread=avgs.length>1?Math.round(Math.max.apply(null,avgs)-Math.min.apply(null,avgs)):0;
+  const idle=DB.people.filter(p=>p.active&&!p.free).map(p=>p.name);
+
+  let html='<div id="toast" class="msg warn" style="display:none"></div>'
+    +'<div class="summary"><span class="k">共</span> <b>'+teams.length+'</b> <span class="k">隊 ·</span> '
+    +'<b>'+totalSlots+'</b> <span class="k">場次 ·</span> '
+    +'<span class="k">吃水</span> <b>'+potions+'</b> <span class="k">場（'
+    +(DB.cfg.mode==='all'?'全部喝水':'省水')+'）·</span> '
+    +'<span class="k">滿 '+cap+' 人</span> <b>'+full+'/'+teams.length+'</b> <span class="k">·</span> '
+    +'<span class="k">戰力落差</span> <b>'+spread+'</b>'
+    +(idle.length?'<br><span class="k">沒空（角色照打滿，優先排到後面的隊伍）：'+esc(idle.join('、'))+'</span>':'')
+    +'</div>'
+    +'<div class="msg tip">手動調整：點一個位子選取 → 點另一個位子交換，或點虛線空位移過去（變暗的代表會撞人，不能選）。沒選取時點空位可以加人，位子右邊 ✕ 移除。</div>';
+
+  if(badTeams) html+='<div class="msg warn">有 '+badTeams+' 隊湊不到 '+minCarry+' 個帶。</div>';
+  if(emptySeats){
+    let tail='可用的帶角或疲勞水額度不夠。';
+    if(DB.cfg.mode==='all'){
+      const room=DB.people.filter(p=>p.active&&p.chars.some(c=>c.active&&c.carry))
+        .filter(p=>teams.filter(t=>t.slots.some(s=>s.pid===p.id)).length<teams.length)
+        .map(p=>p.name);
+      tail = room.length
+        ? '水已經排完，把 <b>'+esc(room.slice(0,emptySeats).join('、'))+'</b> 的「水」各加 1 就剛好補滿（其他人已經每隊都上場，再加水只會多開一隊）。'
+        : '所有人都已經每隊都上場了，再加水只會多開一隊，這個空位補不掉。';
+    }
+    html+='<div class="msg warn">還有 '+emptySeats+' 個空位沒補滿。'+tail+'</div>';
+  }
+  if(!badTeams&&!emptySeats) html+='<div class="msg ok">全部隊伍都滿 '+cap+' 人且至少 '+minCarry+' 個帶。</div>';
+
+  html+='<div class="rounds">';
+  teams.forEach(function(t,ti){
+    const bad=carriesIn(t)<minCarry||t.slots.length<cap;
+    html+='<div class="round '+(bad?'bad':'')+'"><div class="rhead"><b>第 '+(ti+1)+' 隊</b>'
+      +'<span class="st">'+t.slots.length+'/'+cap+' 人 · '+carriesIn(t)+' 帶 · '
+      +'<span class="p">戰力 '+teamPower(t)+'</span></span>'
+      +'<button class="mini" onclick="delTeam('+ti+')">✕</button></div>';
+    t.slots.forEach(function(s,i){
+      const on=sel&&sel.t===ti&&sel.i===i;
+      const no=sel&&!on&&!canSwap(sel.t,sel.i,ti,i);
+      html+='<div class="slot '+(on?'sel':'')+' '+(no?'no':'')+'" onclick="clickSlot('+ti+','+i+')">'
+        +'<span class="who">'+esc(s.person)+'</span><span class="ch">'+esc(s.char)+'</span>'
+        +'<span class="pw '+(slotEst(s)?'est':'')+'">'+slotPower(s)+'</span>'
+        +'<span class="tag '+(s.carry?'t-carry':'t-leech')+'">'+(s.carry?'帶':'躺')+'</span>'
+        +(s.potion?'<span class="tag t-potion">水</span>':'')
+        +(s.busy?'<span class="tag t-late">後</span>':'')
+        +'<button class="mini" onclick="event.stopPropagation();delSlot('+ti+','+i+')">✕</button></div>';
+    });
+    const noMove=sel&&!canMove(sel.t,sel.i,ti);
+    for(let k=t.slots.length;k<cap;k++)
+      html+='<div class="empty '+(noMove?'no':'')+'" onclick="clickEmpty('+ti+')">'+(sel?'▸ 移到這裡':'＋ 空位')+'</div>';
+    if(picking===ti){
+      html+='<div class="picker">'; let any=false;
+      DB.people.filter(p=>p.active&&!t.slots.some(s=>s.pid===p.id)).forEach(function(p){
+        p.chars.filter(c=>c.active).forEach(function(c){
+          any=true;
+          html+='<button onclick="addSlot('+ti+',\''+p.id+'\',\''+c.id+'\')">'+esc(p.name)+' · '+esc(c.name)
+            +' <span style="color:'+(c.carry?'var(--carry)':'var(--dim)')+'">'+(c.carry?'帶':'躺')+'</span>'
+            +' <span style="color:var(--pow)">'+powerOf(c)+'</span></button>';
+        });
+      });
+      if(!any) html+='<p class="hint">沒有可加入的人了。</p>';
+      html+='</div>';
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+
+  html+='<table style="margin-top:16px"><tr><th>成員</th><th>場次</th><th>吃水</th><th class="num">平均戰力</th><th>出場</th></tr>';
+  DB.people.filter(p=>p.active).forEach(function(p){
+    const mine=[]; let pot=0, pw=0;
+    teams.forEach((t,i)=>t.slots.forEach(function(s){
+      if(s.pid===p.id){ mine.push((i+1)+'隊 '+s.char+(s.potion?'(水)':'')); if(s.potion)pot++; pw+=slotPower(s); }
+    }));
+    html+='<tr><td>'+esc(p.name)+'</td><td>'+mine.length+'</td>'
+      +'<td class="'+(pot>p.potion?'over':'')+'">'+pot+' / '+p.potion+'</td>'
+      +'<td class="num">'+(mine.length?Math.round(pw/mine.length):'-')+'</td>'
+      +'<td>'+esc(mine.join('、'))+'</td></tr>';
+  });
+  html+='</table>';
+  out.innerHTML=html;
+}
+
+syncCfgUI(); renderRoster();
+if(teams.length){ normalize(teams); renderTeams(); } else run();
+</script>
+</body>
+</html>
