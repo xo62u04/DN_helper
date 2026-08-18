@@ -459,7 +459,9 @@ function mountSync(onUpdate){
   });
   if(Sync.ready()){
     Sync.pull(true).then(function(){ if(onUpdate) onUpdate(); });
-    Sync.startPolling(90);
+    // 未登入的 GitHub API 只有 60 次/小時（整個 IP 共用），所以沒權杖時放慢輪詢；
+    // 有權杖是 5000 次/小時，可以拉快讓大家更即時看到彼此的進度。
+    Sync.startPolling(Sync.status().hasToken ? 60 : 240);
     window.onSynced=function(){ if(onUpdate) onUpdate(); };
   }
 }
