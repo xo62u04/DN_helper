@@ -65,7 +65,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 0,
+      "t": 1787139533241,
       "chars": [
         {
           "name": "毀滅",
@@ -78,11 +78,11 @@
           "def": 0,
           "fd": 0,
           "mwTier": "60A",
-          "mwEnh": 9,
+          "mwEnh": 10,
           "swTier": "60A",
-          "swEnh": 9,
+          "swEnh": 10,
           "aTier": "60A",
-          "aEnh": 7
+          "aEnh": 9
         },
         {
           "name": "聖徒",
@@ -95,10 +95,27 @@
           "def": 0,
           "fd": 0,
           "mwTier": "60A",
-          "mwEnh": 0,
+          "mwEnh": 10,
           "swTier": "60A",
           "swEnh": 0,
           "aTier": "60A",
+          "aEnh": 0
+        },
+        {
+          "name": "毀滅",
+          "job": "毀滅",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "70A",
+          "mwEnh": 0,
+          "swTier": "70A",
+          "swEnh": 0,
+          "aTier": "70A",
           "aEnh": 0
         }
       ]
