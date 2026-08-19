@@ -239,7 +239,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 1787146857302,
+      "t": 1787147745164,
       "chars": [
         {
           "name": "審判",
@@ -275,6 +275,24 @@
           "swTier": "60A",
           "swEnh": 0,
           "aTier": "60A",
+          "aEnh": 0
+        },
+        {
+          "name": "聖徒",
+          "job": "聖徒",
+          "elem": "光",
+          "carry": false,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "ea": 0,
+          "mwTier": "70A",
+          "mwEnh": 0,
+          "swTier": "70A",
+          "swEnh": 0,
+          "aTier": "70A",
           "aEnh": 0
         }
       ]
