@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608192149">
+<link rel="stylesheet" href="style.css?v=202608192154">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -64,7 +64,8 @@
         名單有異動會自動重排，「重新分團」會以還沒打完的人重排。
         「建議戰力」是每人平均，填了才會算裝備缺口；不知道就先留 0。</span>
     </div>
-    <div class="msg tip">手動調整：點一個位子選取 → 點另一個位子交換，或點虛線空位移過去
+    <div class="msg tip">手動調整：<b>直接把人拖到想去的位置</b>（拖到別人身上就對調，拖到空位就移過去）。
+      也可以用點的：點一個位子選取 → 點另一個位子交換，或點虛線空位移過去
       （變暗的代表會撞到同一個人的兩隻角色，不能選）。位子右邊 ✕ 把人移出編組，
       移出的人會列在該副本下方，點一下加回去。<b>改動會套用到同人數的所有副本</b>，因為那本來就是同一團。</div>
     </div>
@@ -72,7 +73,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608192149"></script>
+<script src="shared.js?v=202608192154"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -340,11 +341,16 @@ function persistLineup(size){
 function clashes(team, s, skipIdx){
   return team.some((x,k)=>k!==skipIdx && x.p.id===s.p.id);
 }
+const capOf = size => size;
 function canPut(size,t,i){
   if(!pick||pick.size!==size) return false;
   const from=lineupCache[size][pick.t], to=lineupCache[size][t];
+  if(!from||!to) return false;
   if(pick.t===t) return true;
   const a=from[pick.i], b=(i==null?null:to[i]);
+  // 移進空位是「這團多一個人」，基準編組滿了就不能再塞
+  // （畫面上看起來有空位，可能是有人這週已經打完被藏起來了）
+  if(i==null && to.length>=capOf(size)) return false;
   if(clashes(to,a,i)) return false;
   if(b&&clashes(from,b,pick.i)) return false;
   return true;
@@ -361,7 +367,6 @@ function clickSlot(size,t,i){
 function clickEmpty(size,t){
   if(!pick||pick.size!==size) return;
   const L=lineupCache[size];
-  if(L[t].length>=DB.dungeons.filter(x=>x.size===size)[0].size) return;
   if(!canPut(size,t,null)) return;
   const a=L[pick.t].splice(pick.i,1)[0];
   L[t].push(a);
@@ -441,7 +446,7 @@ function genAll(){
           const on = pick&&pick.size===d.size&&pick.t===i&&pick.i===x.bi;
           const no = pick&&pick.size===d.size&&!on&&!canPut(d.size,i,x.bi);
           h+='<div class="slot pickable '+(on?'sel':'')+' '+(no?'no':'')+'"'
-            +' onclick="clickSlot('+d.size+','+i+','+x.bi+')">'
+            +' draggable="true" data-size="'+d.size+'" data-t="'+i+'" data-i="'+x.bi+'">'
             +'<span class="who">'+esc(s.p.name)+'</span>'
             +'<span class="ch">'+esc(s.c.name)+'</span>'
             +(e?'<span class="tag e-'+e+'">'+e+'</span>':'')
@@ -449,13 +454,13 @@ function genAll(){
             +'<span class="pw">'+effPowerOf(s.c)
             +(isDps(s.c)?'':'<span class="hint" style="font-size:12px"> ('+powerOf(s.c)+'×'+Math.round(coefOf(s.c)*100)+'%)</span>')
             +'</span>'
-            +'<button class="mini" onclick="event.stopPropagation();benchSlot('+d.size+','+i+','+x.bi+')">✕</button>'
+            +'<button class="mini" data-x="1" data-size="'+d.size+'" data-t="'+i+'" data-i="'+x.bi+'">✕</button>'
             +'</div>';
         });
         const canDrop = pick&&pick.size===d.size&&canPut(d.size,i,null);
         for(let k=0;k<open;k++)
           h+='<div class="slot open '+(pick&&pick.size===d.size?(canDrop?'drop':'no'):'')+'"'
-            +' onclick="clickEmpty('+d.size+','+i+')">'
+            +' data-size="'+d.size+'" data-t="'+i+'" data-empty="1">'
             +(pick&&pick.size===d.size?'▸ 移到這裡':'— 待補外援 —')+'</div>';
         h+=buffLine(slots)+recommend(slots,open)+gapReport(slots,d.size,+d.req||0)+'</div>';
       });
@@ -470,11 +475,54 @@ function genAll(){
     div.innerHTML=h; out.appendChild(div);
   });
 }
-// 板凳按鈕用委派接，免得把 id 塞進 onclick 字串裡跟引號打架
-document.getElementById('out').addEventListener('click', function(e){
-  const b=e.target.closest&&e.target.closest('button[data-bench]');
-  if(!b) return;
-  addFromBench(+b.dataset.bench, b.dataset.bp, b.dataset.bc);
+/* ---- 位子的點擊與拖放，全部用委派接 ---- */
+const outBox=document.getElementById('out');
+const slotOf = el => el.closest && el.closest('.slot[data-size]');
+
+outBox.addEventListener('click', function(e){
+  const bench=e.target.closest&&e.target.closest('button[data-bench]');
+  if(bench) return addFromBench(+bench.dataset.bench, bench.dataset.bp, bench.dataset.bc);
+  const x=e.target.closest&&e.target.closest('button[data-x]');
+  if(x){ e.stopPropagation(); return benchSlot(+x.dataset.size, +x.dataset.t, +x.dataset.i); }
+  const sl=slotOf(e.target);
+  if(!sl) return;
+  const size=+sl.dataset.size, t=+sl.dataset.t;
+  if(sl.dataset.empty) clickEmpty(size,t);
+  else clickSlot(size,t,+sl.dataset.i);
+});
+
+// 拖曳：把人拖到別的位子（互換）或空位（移過去）。
+// 全滿的時候沒有空位，這是唯一能換位置的方式。
+outBox.addEventListener('dragstart', function(e){
+  const sl=slotOf(e.target);
+  if(!sl||sl.dataset.empty) return;
+  pick={size:+sl.dataset.size, t:+sl.dataset.t, i:+sl.dataset.i};
+  sl.classList.add('dragging');
+  try{ e.dataTransfer.setData('text/plain','1'); e.dataTransfer.effectAllowed='move'; }catch(_){}
+});
+outBox.addEventListener('dragend', function(){
+  outBox.querySelectorAll('.dragging,.over').forEach(el=>el.classList.remove('dragging','over'));
+});
+outBox.addEventListener('dragover', function(e){
+  const sl=slotOf(e.target);
+  if(!sl||!pick||+sl.dataset.size!==pick.size) return;
+  const t=+sl.dataset.t;
+  const ok = sl.dataset.empty ? canPut(pick.size,t,null) : canPut(pick.size,t,+sl.dataset.i);
+  if(!ok) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  sl.classList.add('over');
+});
+outBox.addEventListener('dragleave', function(e){
+  const sl=slotOf(e.target); if(sl) sl.classList.remove('over');
+});
+outBox.addEventListener('drop', function(e){
+  const sl=slotOf(e.target);
+  if(!sl||!pick||+sl.dataset.size!==pick.size) return;
+  e.preventDefault();
+  const t=+sl.dataset.t;
+  if(sl.dataset.empty) clickEmpty(pick.size,t);
+  else clickSlot(pick.size,t,+sl.dataset.i);
 });
 document.getElementById('out').addEventListener('change', function(e){
   const dk=e.target.dataset.dk; if(!dk) return;

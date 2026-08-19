@@ -79,6 +79,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .slot.sel{outline:2px solid var(--acc);background:var(--hover)}
 .slot.no{opacity:.35;cursor:not-allowed}
 .slot.drop{border-style:dashed;border-color:var(--acc);color:var(--acc);cursor:pointer}
+.slot.dragging{opacity:.4}
+.slot.over{outline:2px dashed var(--acc);background:var(--hover)}
 .bline{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:8px 0 0;
        font-size:13px;color:var(--dim)}
 code{background:var(--panel2);border:1px solid var(--grid);border-radius:4px;padding:1px 6px;font-size:13px}
