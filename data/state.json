@@ -5,7 +5,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 1787145648969,
+      "t": 1787145876361,
       "chars": [
         {
           "name": "護士",
@@ -63,8 +63,8 @@
         },
         {
           "name": "撕裂",
-          "job": "",
-          "elem": "",
+          "job": "撕裂",
+          "elem": "火",
           "carry": true,
           "active": true,
           "atk": 0,
