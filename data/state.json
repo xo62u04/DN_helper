@@ -352,7 +352,9 @@
       "req": 0
     }
   ],
-  "clears": {},
+  "clears": {
+    "2026-08-13": {}
+  },
   "gear": {
     "tiers": [
       {
@@ -385,12 +387,12 @@
     "minCarry": 2,
     "autoFill": true,
     "balance": true,
-    "resetDay": 4,
+    "resetDay": 6,
     "useFd": true,
     "useCrit": false,
     "sameElem": true
   },
   "meta": {
-    "t": 0
+    "t": 1787138973199
   }
 }
