@@ -86,7 +86,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 1787139631643,
+      "t": 1787147810272,
       "chars": [
         {
           "name": "毀滅",
@@ -112,10 +112,10 @@
           "elem": "光",
           "carry": false,
           "active": true,
-          "atk": 0,
-          "crit": 0,
+          "atk": 7460,
+          "crit": 13,
           "def": 0,
-          "fd": 0,
+          "fd": 9,
           "ea": 0,
           "mwTier": "60A",
           "mwEnh": 11,
