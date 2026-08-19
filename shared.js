@@ -16,10 +16,16 @@ const DPS_COEF = {'護士':0.75, '光輝':0.40, '聖徒':0.25, '毀滅':0.60, '�
 // BUFF 分類：分團演算法用這些標籤判斷一團缺什麼。
 // 前五個是「有數值」的增益，每個職業給的百分比都不一樣，各自記各自的；
 // 後面那些是有沒有的問題，不填數值。
-const BUFF_NUM  = ['增傷','降抗','降爆抗','增加屬攻','增加物攻'];
+// 降抗是分屬性的，降火抗對打水的隊伍沒用，所以四種各記各的。
+// 降爆抗跟屬性無關，維持一種。
+const BUFF_RES  = ELEMS.filter(e=>e!=='無').map(e=>'降'+e+'抗');
+const BUFF_NUM  = ['增傷'].concat(BUFF_RES, ['降爆抗','增加屬攻','增加物攻']);
 const BUFF_FLAG = ['爆擊','破防','回血','護盾','復活','解控','加速'];
+const BUFF_OLD  = ['降抗'];          // 舊資料寫過的籠統標籤，還認得但不再提供新增
 const BUFFTAGS  = BUFF_NUM.concat(BUFF_FLAG);
-const isNumBuff = k => BUFF_NUM.indexOf(k)>=0;
+const isNumBuff = k => BUFF_NUM.indexOf(k)>=0 || BUFF_OLD.indexOf(k)>=0;
+// 這個標籤是針對哪個屬性的降抗；不是降抗就回空字串
+const resElemOf = k => BUFF_RES.indexOf(k)>=0 ? k.slice(1,-1) : '';
 
 /* BUFF 一律存成 [{k:標籤, v:百分比}]。舊資料是純字串陣列，v 補 0。 */
 function normBuffs(list, legacyPct){

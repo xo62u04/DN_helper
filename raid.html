@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608192245">
+<link rel="stylesheet" href="style.css?v=202608192311">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -73,7 +73,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608192245"></script>
+<script src="shared.js?v=202608192311"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -190,8 +190,17 @@ function buffLine(slots){
   const nums=Object.keys(tot).filter(k=>tot[k]);
   const fl=Object.keys(flags);
   if(!nums.length&&!fl.length) return '';
+  // 這團主要打什麼屬性，決定哪一種降抗是有效的
+  const els={}; slots.forEach(s=>{const e=elemOf(s.c); if(e) els[e]=(els[e]||0)+1;});
+  const mainElem=Object.keys(els).sort((a,b)=>els[b]-els[a])[0]||'';
   return '<div class="bline">團隊增益：'
-    + nums.map(k=>'<span class="bchip bc-num">'+esc(k)+' '+tot[k]+'%</span>').join('')
+    + nums.map(function(k){
+        const re=resElemOf(k);
+        const dead = re && mainElem && re!==mainElem;
+        return '<span class="bchip '+(dead?'bc-dead':'bc-num')+'"'
+             + (dead?' title="這團主要打'+mainElem+'，降'+re+'抗用不到"':'')
+             + '>'+esc(k)+' '+tot[k]+'%'+(dead?' ⚠':'')+'</span>';
+      }).join('')
     + fl.map(k=>'<span class="bchip bc-flag">'+esc(k)+'</span>').join('')
     + '</div>';
 }
@@ -220,12 +229,21 @@ function recommend(slots, openCount){
 
   const scored=DB.jobs.map(function(j){
     let s=0;
-    (j.buffs||[]).forEach(b=>{ if(missBuff.indexOf(b.k)>=0) s+=3; });
+    (j.buffs||[]).forEach(function(b){
+      if(missBuff.indexOf(b.k)>=0) s+=3;
+      const re=resElemOf(b.k);
+      if(re && mainElem){ s += (re===mainElem) ? 4 : -2; }   // 降錯屬性的抗等於沒帶
+    });
     if(missRole.indexOf(j.role)>=0) s+=5;
     if(mainElem&&j.elem===mainElem) s+=2;
-    // 有數值的增益全部加起來當作「帶這隻比較賺」的權重
+    // 有數值的增益加起來當作「帶這隻比較賺」的權重，
+    // 但降抗只算對得上這團主屬性的那一種
     const tot=buffTotals(j.buffs);
-    s += Object.keys(tot).reduce((n,k)=>n+tot[k],0)/20;
+    s += Object.keys(tot).reduce(function(n,k){
+      const re=resElemOf(k);
+      if(re && mainElem && re!==mainElem) return n;
+      return n+tot[k];
+    },0)/20;
     return {j:j, s:s};
   }).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
 

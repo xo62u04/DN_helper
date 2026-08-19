@@ -88,6 +88,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .bc-num{color:#ffd479;border-color:#ffd47955;background:#ffd4790f}
 .bc-flag{color:var(--dim);border-color:var(--line)}
 .bc-empty{color:var(--warn);border-color:var(--warn);background:#ff6b6b12}
+.bc-dead{color:var(--dim);border-color:var(--line);text-decoration:line-through}
 .bench{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .slot.pickable{cursor:pointer}
 .slot.pickable:hover{background:var(--hover)}
