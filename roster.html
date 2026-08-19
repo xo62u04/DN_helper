@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>角色資料 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608192124">
+<link rel="stylesheet" href="style.css?v=202608192130">
 <style>
   td.gear select{padding:3px 2px;font-size:14px}
   td.gear input{width:44px;padding:3px 4px;font-size:14px}
@@ -75,6 +75,8 @@
     <p class="hint" style="margin:10px 0 0">
       <b>BUFF 欄</b>用逗號分隔，每個標籤各自帶自己的數值，寫成 <b>標籤:數值</b>，例如
       <code>增傷:15,降抗:20,增加屬攻:10,加速</code>。
+      <b>輸出%</b> 是這個職業實際打得出來的傷害佔純輸出職業的幾成，分團的團隊戰力
+      就是照這個折算後加總的。預設：護士 75、毀滅 60、光輝 40、聖騎 30、聖徒 25，其餘 100 —— 不準就直接改。
       這五種是有數值的，各算各的、不會混在一起：
       <b>增傷、降抗、降爆抗、增加屬攻、增加物攻</b>。
       這幾種是有沒有的問題，不用填數值：<b>爆擊、破防、回血、護盾、復活、解控、加速</b>（可自己加別的）。
@@ -114,7 +116,7 @@
 
 </div>
 
-<script src="shared.js?v=202608192124"></script>
+<script src="shared.js?v=202608192130"></script>
 <script>
 /* ---------- 初始化 ---------- */
 document.getElementById('nav').innerHTML = navBar('roster.html','SEA 經典服 · PC');
@@ -145,13 +147,32 @@ const tierOpts = k => DB.gear.tiers
   .map(t=>'<option value="'+esc(t.k)+'"'+(t.k===k?' selected':'')+'>'+esc(t.k)+'</option>').join('');
 const jobOpts = j => '<option value=""></option>' + DB.jobs
   .map(x=>'<option value="'+esc(x.name)+'"'+(x.name===j?' selected':'')+'>'+esc(x.name)+'</option>').join('');
-const elemOpts = e => ['','火','水','光','暗']
-  .map(x=>'<option value="'+x+'"'+(x===e?' selected':'')+'>'+(x||'—')+'</option>').join('');
+// 角色沒自己指定屬性時就跟著職業走，所以空白那格要寫出繼承到什麼，
+// 不然畫面上是一片空白，看起來像沒設定
+const elemOpts = (e, inherit) => ['','火','水','光','暗']
+  .map(x=>'<option value="'+x+'"'+(x===e?' selected':'')+'>'
+        +(x || (inherit ? '＝職業（'+inherit+'）' : '—'))+'</option>').join('');
 
 function gearCell(p,c,part){
   const T=part+'Tier', E=part+'Enh';
   return '<td class="gear"><select data-a="'+T+'" data-p="'+p.id+'" data-c="'+c.id+'">'+tierOpts(c[T])+'</select>'
        + ' +<input type="number" min="0" max="20" value="'+c[E]+'" data-a="'+E+'" data-p="'+p.id+'" data-c="'+c.id+'"></td>';
+}
+// 屬性格：下拉 ＋ 實際生效的屬性（可能是從職業繼承來的）
+function elemCell(p,c){
+  const j=jobOf(c)||{}, eff=elemOf(c);
+  return '<select data-a="elem" data-p="'+p.id+'" data-c="'+c.id+'">'+elemOpts(c.elem, j.elem)+'</select>'
+       + (eff ? ' <span class="tag e-'+eff+'">'+eff+'</span>' : '');
+}
+// 這隻角色從職業帶過來的隊伍增益
+function jobBuffCell(c){
+  const list=buffsOf(c);
+  if(!list.length) return '<span class="hint">—</span>';
+  return '<span class="bchips">'+list.map(function(b){
+    const num=isNumBuff(b.k);
+    return '<span class="bchip '+(!num?'bc-flag':(b.v?'bc-num':'bc-empty'))+'">'
+         + esc(b.k)+(num?' '+(b.v||0)+'%':'')+'</span>';
+  }).join('')+'</span>';
 }
 // 定位標籤：補／坦／輸出，顏色跟分團頁一致
 function roleTag(c){
@@ -182,17 +203,17 @@ function renderRoster(){
         + '<span class="nm">'+esc(p.name)+'</span>'
         + '<button class="mini" data-a="delp" data-p="'+p.id+'">✕</button></div>'
         + '<div class="tbl-wrap"><table><tr>'
-        + '<th></th><th>角色</th><th>職業</th><th>定位</th><th>屬性</th><th>帶/躺</th>'
+        + '<th></th><th>職業</th><th>定位</th><th>屬性</th><th>隊伍增益</th><th>帶/躺</th>'
         + '<th class="num">表攻</th><th class="num">爆擊</th><th class="num">防禦</th>'
         + '<th class="num">終傷%</th><th class="num">屬攻%</th>'
         + '<th>主武</th><th>副武</th><th>防具</th><th class="num">戰力</th><th></th></tr>';
     p.chars.forEach(c=>{
       h += '<tr class="'+(c.active?'':'off')+'">'
         + '<td><input type="checkbox" '+(c.active?'checked':'')+' data-a="cactive" data-p="'+p.id+'" data-c="'+c.id+'"></td>'
-        + '<td><input type="text" class="cn" value="'+esc(c.name)+'" data-a="name" data-p="'+p.id+'" data-c="'+c.id+'"></td>'
-        + '<td><select data-a="job" data-p="'+p.id+'" data-c="'+c.id+'">'+jobOpts(c.job)+'</select></td>'
+        + '<td><select class="cn" data-a="job" data-p="'+p.id+'" data-c="'+c.id+'">'+jobOpts(c.job||c.name)+'</select></td>'
         + '<td>'+roleTag(c)+'</td>'
-        + '<td><select data-a="elem" data-p="'+p.id+'" data-c="'+c.id+'">'+elemOpts(c.elem)+'</select></td>'
+        + '<td>'+elemCell(p,c)+'</td>'
+        + '<td>'+jobBuffCell(c)+'</td>'
         + '<td><select data-a="carry" data-p="'+p.id+'" data-c="'+c.id+'">'
         +   '<option value="1"'+(c.carry?' selected':'')+'>帶</option>'
         +   '<option value="0"'+(c.carry?'':' selected')+'>躺</option></select></td>'
@@ -204,8 +225,9 @@ function renderRoster(){
     });
     h += '</table></div>'
        + '<div class="row" style="margin-top:8px">'
-       + '<input type="text" placeholder="新增角色名稱" data-a="newc" data-p="'+p.id+'">'
-       + '<button data-a="addc" data-p="'+p.id+'">＋角色</button></div>';
+       + '<select data-a="newc" data-p="'+p.id+'">'+jobOpts('')+'</select>'
+       + '<button data-a="addc" data-p="'+p.id+'">＋職業</button>'
+       + '<span class="hint">職業庫裡沒有的，先去下面的職業庫加</span></div>';
     d.innerHTML=h; box.appendChild(d);
   });
   const sel=document.getElementById('whoMine');
@@ -216,9 +238,11 @@ function renderRoster(){
 
 const rosterBox=document.getElementById('roster');
 rosterBox.addEventListener('change', onRoster);
-rosterBox.addEventListener('input',  e=>{ if(e.target.dataset.a==='name') onRoster(e,true); });
+
 rosterBox.addEventListener('click',  e=>{ const a=e.target.dataset.a; if(a==='delp'||a==='delc'||a==='addc') onRoster(e); });
 rosterBox.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.dataset.a==='newc'){ e.preventDefault(); addChar(e.target.dataset.p);} });
+// 新增那格是下拉，change 會先被 onRoster 攔到，這裡直接接手
+rosterBox.addEventListener('change', e=>{ if(e.target.dataset.a==='newc') addChar(e.target.dataset.p); });
 
 function onRoster(e, quiet){
   const t=e.target, a=t.dataset.a; if(!a) return;
@@ -231,8 +255,8 @@ function onRoster(e, quiet){
   else if(a==='addc') return addChar(p.id);
   else if(!c) return;
   else if(a==='cactive') c.active=t.checked;
-  else if(a==='name'){ c.name=t.value; }
-  else if(a==='job'||a==='elem') c[a]=t.value;
+  else if(a==='job'){ c.job=t.value; c.name=t.value; }   // 角色就是職業，名稱跟著走
+  else if(a==='elem') c.elem=t.value;
   else if(a==='carry') c.carry=t.value==='1';
   else if(['atk','crit','def','fd','ea','mwEnh','swEnh','aEnh'].includes(a)) c[a]=num();
   else if(['mwTier','swTier','aTier'].includes(a)) c[a]=t.value;
@@ -246,16 +270,14 @@ function onRoster(e, quiet){
 
 function addChar(pid){
   const p=DB.people.find(x=>x.id===pid);
-  const inp=document.querySelector('input[data-a="newc"][data-p="'+pid+'"]');
-  const name=inp.value.trim(); if(!name) return inp.focus();
+  const sel=document.querySelector('select[data-a="newc"][data-p="'+pid+'"]');
+  const name=(sel&&sel.value||'').trim(); if(!name) return sel&&sel.focus();
+  if(p.chars.some(c=>(c.job||c.name)===name)) return alert('已經有「'+name+'」了');
   const t=DB.gear.tiers[DB.gear.tiers.length-1].k;
   touchPerson(p);
-  p.chars.push({id:nid(), name, job:DB.jobs.some(j=>j.name===name)?name:'', elem:'', carry:true, active:true,
+  p.chars.push({id:nid(), name, job:name, elem:'', carry:true, active:true,
                 atk:0,crit:0,def:0,fd:0,ea:0, mwTier:t,mwEnh:0, swTier:t,swEnh:0, aTier:t,aEnh:0});
-  if(!DB.jobs.some(j=>j.name===name))
-    DB.jobs.push({name, base:'', elem:'', role:defRole(name), buffs:[], dps:DPS_COEF[name]??1, note:''});
   saveDB(); renderRoster(); renderJobs();
-  document.querySelector('input[data-a="newc"][data-p="'+pid+'"]').focus();
 }
 function addPerson(){
   const inp=document.getElementById('newPerson');
@@ -276,6 +298,7 @@ function buffChips(list){
 }
 function renderJobs(){
   let h='<tr><th class="n">職業</th><th class="n">系別</th><th class="n">屬性</th><th class="n">定位</th>'
+      + '<th class="num">輸出%</th>'
       + '<th>提供的隊伍 BUFF（標籤:數值，逗號分隔）</th><th>備註</th><th></th></tr>';
   DB.jobs.forEach((j,i)=>{
     h+='<tr>'
@@ -284,6 +307,8 @@ function renderJobs(){
       +'<td class="n"><select data-j="'+i+'" data-f="elem">'+elemOpts(j.elem)+'</select></td>'
       +'<td class="n"><select data-j="'+i+'" data-f="role"><option value=""></option>'
       + ROLES.map(r=>'<option'+(r===j.role?' selected':'')+'>'+r+'</option>').join('')+'</select></td>'
+      +'<td class="num"><input type="number" style="width:70px" min="0" max="200" '
+      +   'value="'+Math.round((j.dps==null?1:j.dps)*100)+'" data-j="'+i+'" data-f="dps"></td>'
       +'<td><input type="text" value="'+esc(buffText(j.buffs))+'" data-j="'+i+'" data-f="buffs" '
       +   'placeholder="例：增傷:15,降抗:20,增加屬攻:10,加速"><div class="bchips">'+buffChips(j.buffs)+'</div></td>'
       +'<td><input type="text" value="'+esc(j.note)+'" data-j="'+i+'" data-f="note"></td>'
@@ -311,6 +336,7 @@ function onJob(e){
   const j=DB.jobs[i];
   if(f==='del'){ if(!confirm('刪除職業「'+j.name+'」？')) return; DB.jobs.splice(i,1); }
   else if(f==='buffs') j.buffs=parseBuffs(e.target.value);
+  else if(f==='dps')   j.dps=Math.max(0,(+e.target.value||0)/100);
   else if(f==='name'){
     const old=j.name, nw=e.target.value.trim()||old;
     DB.people.forEach(p=>p.chars.forEach(c=>{ if(c.job===old) c.job=nw; }));

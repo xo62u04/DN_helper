@@ -10,8 +10,9 @@ const ROLES = ['輸出','補師','坦','輔助'];
 // 定位是靠職業名認的，不是靠職業庫填 —— 這幾個是硬規則，填錯也不會跑掉
 const HEALER_JOBS = ['護士','光輝','聖徒'];
 const TANK_JOBS   = ['毀滅','聖騎'];
-// 補師的實際輸出大約是同裝輸出的幾成（團長給的實測值），只影響顯示，不影響分團
-const DPS_COEF = {'護士':0.75, '光輝':0.40, '聖徒':0.25};
+// 補師和坦的實際輸出大約是同裝純輸出的幾成（團長給的實測值）。
+// 分團的團隊戰力就是照這個折算後加總的，職業庫裡可以自己改。
+const DPS_COEF = {'護士':0.75, '光輝':0.40, '聖徒':0.25, '毀滅':0.60, '聖騎':0.30};
 // BUFF 分類：分團演算法用這些標籤判斷一團缺什麼。
 // 前五個是「有數值」的增益，每個職業給的百分比都不一樣，各自記各自的；
 // 後面那些是有沒有的問題，不填數值。
@@ -125,7 +126,10 @@ function mergeDefaults(s){
   s.jobs     = Array.isArray(s.jobs)&&s.jobs.length ? s.jobs.map(j=>({
                  name:j.name, base:j.base||'', elem:j.elem||'', role:j.role||defRole(j.name),
                  buffs:normBuffs(j.buffs, j.pct),
-                 dps:j.dps==null ? (DPS_COEF[j.name]??1) : (+j.dps||0), note:j.note||''})) : d.jobs;
+                 // dps 還是 1 又剛好是已知的輔助職業，代表是舊版留下的預設值，
+                 // 不是誰刻意填的，用新的實測係數蓋掉
+                 dps:(j.dps==null || (+j.dps===1 && DPS_COEF[j.name]!=null))
+                       ? (DPS_COEF[j.name]??1) : (+j.dps||0), note:j.note||''})) : d.jobs;
   // 預設職業庫新增過的職業（例如聖騎）要補進舊存檔，不然選單裡選不到
   d.jobs.forEach(dj=>{ if(!s.jobs.some(j=>j.name===dj.name)) s.jobs.push(dj); });
   s.dungeons = Array.isArray(s.dungeons)&&s.dungeons.length ? s.dungeons : d.dungeons;
@@ -289,10 +293,16 @@ function roleKind(c){
 const isHealer = c => roleKind(c)==='補師';
 const isTank   = c => roleKind(c)==='坦';
 const isDps    = c => roleKind(c)==='輸出';
-// 分團平衡只吃這個：補師和坦一律 0，不會把團隊戰力灌胖
-const dpsPowerOf = c => isDps(c) ? powerOf(c) : 0;
-// 等效輸出：補師實際打得出來的量，只給人看，不進分團計算
-const effPowerOf = c => Math.round(powerOf(c) * (isDps(c) ? 1 : ((jobOf(c)||{}).dps ?? 1)));
+// 等效輸出：照職業的輸出係數折算後的實際輸出量。
+// 分團的團隊戰力吃這個 —— 補師和坦算得進來，但只算他們打得出來的那一份，
+// 不會用純表攻把整團平均灌胖。
+function coefOf(c){
+  const j=jobOf(c);
+  if(j && j.dps!=null) return +j.dps||0;
+  const n=c ? (c.job||c.name) : '';
+  return DPS_COEF[n] ?? 1;
+}
+const effPowerOf = c => Math.round(powerOf(c) * coefOf(c));
 
 /* ---------------- 匯出 / 匯入 ---------------- */
 const packChar = c => ({name:c.name, job:c.job, elem:c.elem, carry:c.carry, active:c.active,

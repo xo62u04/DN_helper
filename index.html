@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>深淵分隊 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608192124">
+<link rel="stylesheet" href="style.css?v=202608192130">
 <style>
   .cols{display:grid;grid-template-columns:minmax(300px,360px) 1fr;gap:18px;align-items:start}
   @media(max-width:1050px){.cols{grid-template-columns:1fr}}
@@ -97,7 +97,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608192124"></script>
+<script src="shared.js?v=202608192130"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('index.html','SEA 經典服 · PC');
 document.getElementById('notice').innerHTML = storageOK ? ''
@@ -260,9 +260,8 @@ function scoreOf(rounds,cap,minCarry,balance,pw,rk){
     empty+=Math.max(0,cap-r.slots.length);
     potions+=r.slots.filter(s=>s.potion).length;
     r.slots.forEach(s=>{ prio += s.busy ? (last-i) : i; });
-    // 團隊戰力只算輸出，補師和坦不列入平均
-    const dps=r.slots.filter(s=>rk[s.pid+'/'+s.cid]==='輸出');
-    avgs.push(dps.length ? dps.reduce((n,s)=>n+(pw[s.pid+'/'+s.cid]||0),0)/dps.length : 0);
+    // 團隊戰力用等效輸出：補師和坦照職業係數折算後算進來
+    avgs.push(r.slots.length ? r.slots.reduce((n,s)=>n+(pw[s.pid+'/'+s.cid]||0),0)/r.slots.length : 0);
   });
   const spread=avgs.length>1?Math.max.apply(null,avgs)-Math.min.apply(null,avgs):0;
   const mean=avgs.reduce((a,b)=>a+b,0)/(avgs.length||1);
@@ -284,7 +283,7 @@ function solve(){
   if(!N) return null;
   const pw={}, rk={};
   people.forEach(p=>p.chars.forEach(c=>{
-    pw[p.id+'/'+c.id]=powerOf(c); rk[p.id+'/'+c.id]=roleKind(c); }));
+    pw[p.id+'/'+c.id]=effPowerOf(c); rk[p.id+'/'+c.id]=roleKind(c); }));
   const cap=Math.min(cfg.teamSize,people.length);
   const R=Math.max(Math.ceil(N/cap), Math.max.apply(null,people.map(p=>p.runs.length)));
   let best=null;
@@ -354,11 +353,11 @@ function toast(msg){
 }
 
 /* ---------------- 輸出 ---------------- */
-const slotPower = s => { const f=findChar(s.pid,s.cid); return f.c?powerOf(f.c):0; };
+const slotPower = s => { const f=findChar(s.pid,s.cid); return f.c?effPowerOf(f.c):0; };
 const slotEst   = s => { const f=findChar(s.pid,s.cid); return isEst(f.c); };
 const slotKind  = s => { const f=findChar(s.pid,s.cid); return f.c?roleKind(f.c):'輸出'; };
-// 隊伍戰力只加總輸出，補師和坦不列入 —— 他們算的是「有沒有」不是「多少」
-const teamPower = t => t.slots.filter(s=>slotKind(s)==='輸出').reduce((n,s)=>n+slotPower(s),0);
+// 隊伍戰力＝等效輸出加總（補師和坦已照職業係數折算）
+const teamPower = t => t.slots.reduce((n,s)=>n+slotPower(s),0);
 const kindsIn   = (t,k) => t.slots.filter(s=>slotKind(s)===k).length;
 
 function renderTeams(){
@@ -371,8 +370,7 @@ function renderTeams(){
   const full=teams.filter(t=>t.slots.length===cap).length;
   const badTeams=teams.filter(t=>carriesIn(t)<minCarry).length;
   const emptySeats=teams.reduce((n,t)=>n+Math.max(0,cap-t.slots.length),0);
-  const avgs=teams.map(t=>t.slots.filter(s=>slotKind(s)==='輸出').length)
-                  .map((n,i)=>n?teamPower(teams[i])/n:0).filter(v=>v>0);
+  const avgs=teams.filter(t=>t.slots.length).map(t=>teamPower(t)/t.slots.length);
   const spread=avgs.length>1?Math.round(Math.max.apply(null,avgs)-Math.min.apply(null,avgs)):0;
   const idle=DB.people.filter(p=>p.active&&!p.free).map(p=>p.name);
 
@@ -407,7 +405,7 @@ function renderTeams(){
     const bad=carriesIn(t)<minCarry||t.slots.length<cap;
     html+='<div class="round '+(bad?'bad':'')+'"><div class="rhead"><b>第 '+(ti+1)+' 隊</b>'
       +'<span class="st">'+t.slots.length+'/'+cap+' 人 · '+carriesIn(t)+' 帶 · '
-      +'<span class="p">輸出戰力 '+teamPower(t)+'</span> '
+      +'<span class="p">等效輸出 '+teamPower(t)+'</span> '
       +'<span class="tag t-heal">補 '+kindsIn(t,'補師')+'</span> '
       +'<span class="tag t-tank">坦 '+kindsIn(t,'坦')+'</span>'
       +((!kindsIn(t,'補師')||!kindsIn(t,'坦'))
