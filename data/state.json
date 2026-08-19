@@ -65,7 +65,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 1787139546737,
+      "t": 1787139555353,
       "chars": [
         {
           "name": "毀滅",
@@ -116,6 +116,23 @@
           "swTier": "60A",
           "swEnh": 0,
           "aTier": "60A",
+          "aEnh": 0
+        },
+        {
+          "name": "ㄐㄐ",
+          "job": "",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "mwTier": "70A",
+          "mwEnh": 0,
+          "swTier": "70A",
+          "swEnh": 0,
+          "aTier": "70A",
           "aEnh": 0
         }
       ]
@@ -317,6 +334,15 @@
     },
     {
       "name": "狂戰",
+      "base": "",
+      "elem": "",
+      "role": "",
+      "buffs": [],
+      "pct": 0,
+      "note": ""
+    },
+    {
+      "name": "ㄐㄐ",
       "base": "",
       "elem": "",
       "role": "",
