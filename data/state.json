@@ -176,7 +176,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 0,
+      "t": 1787146951402,
       "chars": [
         {
           "name": "劍鬥",
@@ -213,6 +213,24 @@
           "swEnh": 6,
           "aTier": "60B",
           "aEnh": 6
+        },
+        {
+          "name": "劍刃",
+          "job": "劍刃",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "ea": 0,
+          "mwTier": "70A",
+          "mwEnh": 0,
+          "swTier": "70A",
+          "swEnh": 0,
+          "aTier": "70A",
+          "aEnh": 0
         }
       ]
     },
@@ -511,6 +529,14 @@
       "i18|kim_n": {
         "v": true,
         "t": 1787146928883
+      },
+      "i30|abp_h": {
+        "v": true,
+        "t": 1787146964938
+      },
+      "i30|kim_h": {
+        "v": true,
+        "t": 1787146966472
       }
     }
   },
