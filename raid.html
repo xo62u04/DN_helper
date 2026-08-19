@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608191932">
+<link rel="stylesheet" href="style.css?v=202608192018">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -61,7 +61,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608191932"></script>
+<script src="shared.js?v=202608192018"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -85,7 +85,9 @@ function renderMatrix(){
     const el=elemOf(r.c);
     h+='<tr class="'+(done?'alldone':'')+'"><td class="who">'+esc(r.p.name)+' · <b>'+esc(r.c.name)+'</b>'
       + (el?' <span class="tag e-'+el+'">'+el+'</span>':'')
-      + ' <span class="tag '+(r.c.carry?'t-carry':'t-leech')+'">'+(r.c.carry?'帶':'躺')+'</span></td>';
+      + ' <span class="tag '+(r.c.carry?'t-carry':'t-leech')+'">'+(r.c.carry?'帶':'躺')+'</span>'
+      + (isDps(r.c)?'':' <span class="tag '+(isHealer(r.c)?'t-heal':'t-tank')+'">'+(isHealer(r.c)?'補':'坦')+'</span>')
+      + '</td>';
     DB.dungeons.forEach(function(d){
       h+='<td><input type="checkbox" '+(isCleared(r.c.id,d.key)?'checked':'')
         +' data-c="'+r.c.id+'" data-d="'+d.key+'"></td>';
@@ -138,18 +140,30 @@ function buildTeams(pending, size){
   }
   return best.rounds.map(r=>r.slots);
 }
+// 補師和坦是稀缺的，能分散就不要擠在同一團。
+// 罰則只罰「明明夠分卻擠在一起」——補師總數少於團數時，後面的團本來就註定沒補，不罰。
+function coverGap(rounds, pred){
+  const total = rounds.reduce((n,r)=>n+r.slots.filter(s=>pred(s.c)).length, 0);
+  const covered = rounds.filter(r=>r.slots.some(s=>pred(s.c))).length;
+  return Math.max(0, Math.min(total, rounds.length) - covered);
+}
 function scoreTeams(rounds,size){
   const avgs=[]; let mix=0, spread=0;
   rounds.forEach(function(r){
     const els={}; let has=0;
     r.slots.forEach(function(s){ const e=elemOf(s.c); if(e){ els[e]=1; has++; } });
     if(DB.cfg.sameElem&&has) mix += Object.keys(els).length-1;
-    avgs.push(r.slots.length ? r.slots.reduce((n,s)=>n+powerOf(s.c),0)/r.slots.length : 0);
+    // 團隊戰力只算輸出：補師和坦不列入，免得一個補師把整團的平均拉歪
+    const dps=r.slots.filter(s=>isDps(s.c));
+    avgs.push(dps.length ? dps.reduce((n,s)=>n+powerOf(s.c),0)/dps.length : 0);
   });
   const mean=avgs.reduce((a,b)=>a+b,0)/(avgs.length||1);
   spread = (avgs.length>1&&mean>0) ? (Math.max.apply(null,avgs)-Math.min.apply(null,avgs))/mean : 0;
-  // 團數少 > 屬性一致 > 戰力平均
-  return mix*1000 + spread*300 + rounds.reduce((n,r)=>n+Math.max(0,size-r.slots.length),0);
+  const healGap = DB.cfg.needHealer!==false ? coverGap(rounds, isHealer) : 0;
+  const tankGap = DB.cfg.needTank  !==false ? coverGap(rounds, isTank)   : 0;
+  // 每團一補一坦 > 團數少 > 屬性一致 > 戰力平均
+  return healGap*5000 + tankGap*5000 + mix*1000 + spread*300
+       + rounds.reduce((n,r)=>n+Math.max(0,size-r.slots.length),0);
 }
 
 /* ---- 補位建議：算這團缺哪些 BUFF / 定位，再從職業庫挑人 ---- */
@@ -167,7 +181,7 @@ function recommend(slots, openCount){
   const have={}, roles={}; const elems={};
   slots.forEach(function(s){
     buffsOf(s.c).forEach(b=>have[b]=1);
-    const r=roleOf(s.c); if(r) roles[r]=(roles[r]||0)+1;
+    const r=roleKind(s.c); roles[r]=(roles[r]||0)+1;
     const e=elemOf(s.c); if(e) elems[e]=(elems[e]||0)+1;
   });
   const missBuff=Object.keys(universe).filter(b=>!have[b]);
@@ -200,15 +214,16 @@ function recommend(slots, openCount){
 function perEnh(){ return DB.gear.wPer * atkRatio(); }
 function gapReport(slots, size, req){
   if(!req) return '<div class="gap hint">沒填建議戰力，跳過裝備檢查。</div>';
-  const need=req*size;
-  const mine=slots.reduce((n,s)=>n+powerOf(s.c),0);
+  const dpsSlots=slots.filter(s=>isDps(s.c));
+  const need=req*Math.max(1,size-(slots.length-dpsSlots.length));   // 補和坦不算進門檻
+  const mine=dpsSlots.reduce((n,s)=>n+powerOf(s.c),0);
   const open=size-slots.length;
   const total=mine+open*req;                 // 外援先當作剛好達標
   if(total>=need)
     return '<div class="gap" style="color:var(--ok)">戰力夠：'+Math.round(total)+' / 需要 '+Math.round(need)
          +'（外援以每人 '+req+' 估）。</div>';
   const short=need-total;
-  const weak=slots.slice().sort((a,b)=>powerOf(a.c)-powerOf(b.c)).slice(0,2)
+  const weak=dpsSlots.slice().sort((a,b)=>powerOf(a.c)-powerOf(b.c)).slice(0,2)
     .map(s=>esc(s.p.name)+'·'+esc(s.c.name)+'（'+powerOf(s.c)+'）');
   const pe=perEnh();
   const enh=pe>0 ? Math.ceil(short/pe) : 0;
@@ -243,19 +258,28 @@ function genAll(){
       h+='<div class="teams">';
       teams.forEach(function(slots,i){
         const open=Math.max(0,d.size-slots.length);
-        const tp=slots.reduce((n,s)=>n+powerOf(s.c),0);
+        // 團隊戰力只加總輸出的，補師和坦不算進去
+        const tp=slots.filter(s=>isDps(s.c)).reduce((n,s)=>n+powerOf(s.c),0);
         const els={}; slots.forEach(s=>{const e=elemOf(s.c); if(e) els[e]=(els[e]||0)+1;});
         const elTag=Object.keys(els).map(e=>'<span class="tag e-'+e+'">'+e+' '+els[e]+'</span>').join(' ');
+        const nHeal=slots.filter(s=>isHealer(s.c)).length;
+        const nTank=slots.filter(s=>isTank(s.c)).length;
+        const lack=[]; if(!nHeal) lack.push('補'); if(!nTank) lack.push('坦');
         h+='<div class="team '+(open?'short':'')+'">'
           +'<div class="thead"><b>第 '+(i+1)+' 團</b>'
-          +'<span>'+slots.length+'/'+d.size+' 人 · 戰力 '+tp+' '+elTag+'</span></div>';
+          +'<span>'+slots.length+'/'+d.size+' 人 · 輸出戰力 '+tp
+          +' <span class="tag t-heal">補 '+nHeal+'</span> <span class="tag t-tank">坦 '+nTank+'</span> '
+          +elTag
+          +(lack.length?' <span class="miss">缺'+lack.join('、')+'</span>':'')
+          +'</span></div>';
         slots.forEach(function(s){
-          const e=elemOf(s.c), r=roleOf(s.c);
+          const e=elemOf(s.c), k=roleKind(s.c);
+          const kc = k==='補師'?'t-heal' : k==='坦'?'t-tank' : 't-dps';
           h+='<div class="slot"><span class="who">'+esc(s.p.name)+'</span>'
             +'<span class="ch">'+esc(s.c.name)+'</span>'
             +(e?'<span class="tag e-'+e+'">'+e+'</span>':'')
-            +(r?'<span class="tag t-late">'+esc(r)+'</span>':'')
-            +'<span class="pw">'+powerOf(s.c)+'</span></div>';
+            +'<span class="tag '+kc+'">'+(k==='補師'?'補':k)+'</span>'
+            +'<span class="pw">'+powerOf(s.c)+(isDps(s.c)?'':'*')+'</span></div>';
         });
         for(let k=0;k<open;k++) h+='<div class="slot open">— 待補外援 —</div>';
         h+=recommend(slots,open)+gapReport(slots,d.size,+d.req||0)+'</div>';

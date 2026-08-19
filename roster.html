@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>角色資料 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608191932">
+<link rel="stylesheet" href="style.css?v=202608192018">
 <style>
   td.gear select{padding:3px 2px;font-size:14px}
   td.gear input{width:44px;padding:3px 4px;font-size:14px}
@@ -36,11 +36,20 @@
       <span style="width:20px"></span>
       <label><input type="checkbox" id="useFd"> 戰力算入終傷</label>
       <label><input type="checkbox" id="useCrit"> 戰力算入爆擊</label>
-      <span class="hint">戰力 = 表攻 ×(1+終傷%) ×(1+爆擊%)</span>
+      <label>爆傷 <input type="number" id="critDmg" min="100" step="10" style="width:82px">%</label>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <span class="hint">戰力 = 表攻 ×(1+終傷%) ×(1+屬攻%) ×(1 + 爆擊率% × (爆傷−100)/100)</span>
     </div>
     <p class="hint" style="margin:8px 0 0">
-      爆擊欄請填「爆擊率 %」才適合算進戰力；如果你填的是爆擊值（未換算），就把上面那個勾拿掉，
+      爆傷目前是 200%，70 等版本上來改成 300 就好，其他都不用動。
+      爆擊欄請填「爆擊率 %」才算得準；如果你填的是爆擊值（未換算），就把上面那個勾拿掉，
       爆擊只會顯示不參與計算。沒填表攻的角色會用裝備推估（戰力顯示成灰色）。
+    </p>
+    <p class="hint" style="margin:6px 0 0">
+      <b>補師</b>（護士／光輝／聖徒）和 <b>坦</b>（毀滅／聖騎）的攻擊力用同一條公式算，
+      但<b>分團時不列入團隊輸出戰力</b>，只算這團有沒有補、有沒有坦。
+      括號裡的「等效」是照職業庫的輸出係數換算的實際輸出量，純參考。
     </p>
   </div>
 
@@ -102,7 +111,7 @@
 
 </div>
 
-<script src="shared.js?v=202608191932"></script>
+<script src="shared.js?v=202608192018"></script>
 <script>
 /* ---------- 初始化 ---------- */
 document.getElementById('nav').innerHTML = navBar('roster.html','SEA 經典服 · PC');
@@ -114,13 +123,15 @@ function syncCfg(){
   document.getElementById('resetDay').value = DB.cfg.resetDay;
   document.getElementById('useFd').checked  = DB.cfg.useFd;
   document.getElementById('useCrit').checked= DB.cfg.useCrit;
+  document.getElementById('critDmg').value  = DB.cfg.critDmg ?? 200;
   document.getElementById('curweek').textContent = curWeek()+' 起';
   document.getElementById('wPer').value = DB.gear.wPer;
   document.getElementById('aPer').value = DB.gear.aPer;
 }
-['resetDay','useFd','useCrit'].forEach(id=>{
+['resetDay','useFd','useCrit','critDmg'].forEach(id=>{
   document.getElementById(id).addEventListener('change', e=>{
-    if(id==='resetDay') DB.cfg.resetDay = +e.target.value;
+    if(id==='resetDay')     DB.cfg.resetDay = +e.target.value;
+    else if(id==='critDmg') DB.cfg.critDmg  = Math.max(100, +e.target.value||200);
     else DB.cfg[id] = e.target.checked;
     touchMeta(); saveDB(); syncCfg(); renderRoster();
   });
@@ -139,6 +150,19 @@ function gearCell(p,c,part){
   return '<td class="gear"><select data-a="'+T+'" data-p="'+p.id+'" data-c="'+c.id+'">'+tierOpts(c[T])+'</select>'
        + ' +<input type="number" min="0" max="20" value="'+c[E]+'" data-a="'+E+'" data-p="'+p.id+'" data-c="'+c.id+'"></td>';
 }
+// 定位標籤：補／坦／輸出，顏色跟分團頁一致
+function roleTag(c){
+  const k=roleKind(c);
+  const cls = k==='補師' ? 't-heal' : k==='坦' ? 't-tank' : 't-dps';
+  return '<span class="tag '+cls+'">'+(k==='補師'?'補':k)+'</span>';
+}
+// 補師和坦多顯示一個「等效輸出」，提醒這個數字不能拿去跟輸出比
+function powCell(c){
+  const est = isEst(c) ? ' 估' : '';
+  let h='<span class="pw '+(isEst(c)?'est':'')+'">'+powerOf(c)+est+'</span>';
+  if(!isDps(c)) h+='<br><span class="hint" style="font-size:12.5px">等效 '+effPowerOf(c)+'</span>';
+  return h;
+}
 function statCell(p,c,f,ph){
   return '<td><input type="number" class="stat" min="0" value="'+(c[f]||'')+'" placeholder="'+ph+'"'
        + ' data-a="'+f+'" data-p="'+p.id+'" data-c="'+c.id+'"></td>';
@@ -155,21 +179,24 @@ function renderRoster(){
         + '<span class="nm">'+esc(p.name)+'</span>'
         + '<button class="mini" data-a="delp" data-p="'+p.id+'">✕</button></div>'
         + '<div class="tbl-wrap"><table><tr>'
-        + '<th></th><th>角色</th><th>職業</th><th>屬性</th><th>帶/躺</th>'
-        + '<th class="num">表攻</th><th class="num">爆擊</th><th class="num">防禦</th><th class="num">終傷%</th>'
+        + '<th></th><th>角色</th><th>職業</th><th>定位</th><th>屬性</th><th>帶/躺</th>'
+        + '<th class="num">表攻</th><th class="num">爆擊</th><th class="num">防禦</th>'
+        + '<th class="num">終傷%</th><th class="num">屬攻%</th>'
         + '<th>主武</th><th>副武</th><th>防具</th><th class="num">戰力</th><th></th></tr>';
     p.chars.forEach(c=>{
       h += '<tr class="'+(c.active?'':'off')+'">'
         + '<td><input type="checkbox" '+(c.active?'checked':'')+' data-a="cactive" data-p="'+p.id+'" data-c="'+c.id+'"></td>'
         + '<td><input type="text" class="cn" value="'+esc(c.name)+'" data-a="name" data-p="'+p.id+'" data-c="'+c.id+'"></td>'
         + '<td><select data-a="job" data-p="'+p.id+'" data-c="'+c.id+'">'+jobOpts(c.job)+'</select></td>'
+        + '<td>'+roleTag(c)+'</td>'
         + '<td><select data-a="elem" data-p="'+p.id+'" data-c="'+c.id+'">'+elemOpts(c.elem)+'</select></td>'
         + '<td><select data-a="carry" data-p="'+p.id+'" data-c="'+c.id+'">'
         +   '<option value="1"'+(c.carry?' selected':'')+'>帶</option>'
         +   '<option value="0"'+(c.carry?'':' selected')+'>躺</option></select></td>'
-        + statCell(p,c,'atk','未填') + statCell(p,c,'crit','') + statCell(p,c,'def','') + statCell(p,c,'fd','')
+        + statCell(p,c,'atk','未填') + statCell(p,c,'crit','') + statCell(p,c,'def','')
+        + statCell(p,c,'fd','') + statCell(p,c,'ea','')
         + gearCell(p,c,'mw') + gearCell(p,c,'sw') + gearCell(p,c,'a')
-        + '<td class="num"><span class="pw '+(isEst(c)?'est':'')+'">'+powerOf(c)+(isEst(c)?' 估':'')+'</span></td>'
+        + '<td class="num">'+powCell(c)+'</td>'
         + '<td><button class="mini" data-a="delc" data-p="'+p.id+'" data-c="'+c.id+'">✕</button></td></tr>';
     });
     h += '</table></div>'
@@ -204,7 +231,7 @@ function onRoster(e, quiet){
   else if(a==='name'){ c.name=t.value; }
   else if(a==='job'||a==='elem') c[a]=t.value;
   else if(a==='carry') c.carry=t.value==='1';
-  else if(['atk','crit','def','fd','mwEnh','swEnh','aEnh'].includes(a)) c[a]=num();
+  else if(['atk','crit','def','fd','ea','mwEnh','swEnh','aEnh'].includes(a)) c[a]=num();
   else if(['mwTier','swTier','aTier'].includes(a)) c[a]=t.value;
   else if(a==='delc') p.chars=p.chars.filter(x=>x!==c);
   else return;
@@ -221,7 +248,7 @@ function addChar(pid){
   const t=DB.gear.tiers[DB.gear.tiers.length-1].k;
   touchPerson(p);
   p.chars.push({id:nid(), name, job:DB.jobs.some(j=>j.name===name)?name:'', elem:'', carry:true, active:true,
-                atk:0,crit:0,def:0,fd:0, mwTier:t,mwEnh:0, swTier:t,swEnh:0, aTier:t,aEnh:0});
+                atk:0,crit:0,def:0,fd:0,ea:0, mwTier:t,mwEnh:0, swTier:t,swEnh:0, aTier:t,aEnh:0});
   if(!DB.jobs.some(j=>j.name===name)) DB.jobs.push({name, base:'', elem:'', role:'', buffs:[], pct:0, note:''});
   saveDB(); renderRoster(); renderJobs();
   document.querySelector('input[data-a="newc"][data-p="'+pid+'"]').focus();

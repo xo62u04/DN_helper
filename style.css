@@ -1,5 +1,6 @@
 :root{
-  --bg:#12141a; --panel:#1a1d26; --panel2:#222632; --line:#2e3342;
+  --bg:#12141a; --panel:#1a1d26; --panel2:#222632; --line:#394156;
+  --grid:#272c3a; --zebra:#ffffff08; --hover:#5b9cff1f;
   --txt:#e7e9ef; --dim:#8d94a8; --acc:#5b9cff; --carry:#ffb648; --leech:#8d94a8;
   --ok:#4bd18c; --warn:#ff6b6b; --potion:#c06bff; --pow:#6fd7e8;
   --fire:#ff7a5c; --ice:#5cc8ff; --light:#ffe07a; --dark:#c58cff; --none:#8d94a8;
@@ -44,10 +45,16 @@ label{cursor:pointer;user-select:none}
 .msg.tip{background:#1c2436;border:1px solid var(--line);color:var(--dim)}
 
 table{width:100%;border-collapse:collapse;font-size:15px}
-th,td{border-bottom:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:middle}
-th{color:var(--dim);font-weight:600;font-size:14px;position:sticky;top:0;background:var(--panel)}
+th,td{border-bottom:1px solid var(--grid);border-right:1px solid var(--grid);
+      padding:7px 10px;text-align:left;vertical-align:middle}
+th:last-child,td:last-child{border-right:none}
+th{color:var(--dim);font-weight:600;font-size:14px;position:sticky;top:0;
+   background:var(--panel2);border-bottom:2px solid var(--line)}
+/* 隔行淡底 + 滑過整列打亮：欄位一多才對得準是哪一行 */
+tbody tr:nth-child(even){background:var(--zebra)}
+tbody tr:hover{background:var(--hover)}
 tr.off td{opacity:.4}
-td.num,th.num{text-align:right}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
 .tag{font-size:12.5px;padding:1px 7px;border-radius:4px;border:1px solid;display:inline-block}
 .t-carry{color:var(--carry);border-color:var(--carry)}
@@ -55,6 +62,10 @@ td.num,th.num{text-align:right}
 .t-potion{color:var(--potion);border-color:var(--potion)}
 .t-late{color:var(--dim);border-color:var(--line)}
 .t-done{color:var(--ok);border-color:var(--ok)}
+.t-heal{color:#67e0a3;border-color:#67e0a3}
+.t-tank{color:#ffb648;border-color:#ffb648}
+.t-dps{color:var(--dim);border-color:var(--line)}
+.miss{color:var(--warn);font-size:13px}
 .e-火{color:var(--fire);border-color:var(--fire)}
 .e-水{color:var(--ice);border-color:var(--ice)}
 .e-光{color:var(--light);border-color:var(--light)}

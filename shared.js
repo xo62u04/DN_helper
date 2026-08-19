@@ -7,6 +7,11 @@
 const DBKEY = 'dn_helper_v1';
 const ELEMS = ['火','水','光','暗','無'];
 const ROLES = ['輸出','補師','坦','輔助'];
+// 定位是靠職業名認的，不是靠職業庫填 —— 這幾個是硬規則，填錯也不會跑掉
+const HEALER_JOBS = ['護士','光輝','聖徒'];
+const TANK_JOBS   = ['毀滅','聖騎'];
+// 補師的實際輸出大約是同裝輸出的幾成（團長給的實測值），只影響顯示，不影響分團
+const DPS_COEF = {'護士':0.75, '光輝':0.40, '聖徒':0.25};
 // BUFF 分類：分團演算法用這些標籤判斷一團缺什麼
 const BUFFTAGS = ['增傷','爆擊','破防','減抗','回血','護盾','復活','解控','加速'];
 
@@ -20,12 +25,15 @@ let uid = 1;
 const nid = () => 'i' + (uid++);
 const esc = s => String(s??'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 
+const defRole = n => HEALER_JOBS.indexOf(n)>=0 ? '補師'
+                    : TANK_JOBS.indexOf(n)>=0   ? '坦' : '輸出';
+
 /* ---------------- 預設資料 ---------------- */
 function defaultDB(){
   // C(角色名, 帶?, 主武+, 副武+, 防具+, 主武裝等, 副武裝等, 防具裝等)
   const C = (name,carry,me,se,ae,mt,st,at) => ({
     id:nid(), name, job:name, elem:'', carry, active:true,
-    atk:0, crit:0, def:0, fd:0,
+    atk:0, crit:0, def:0, fd:0, ea:0,
     mwTier:mt||'60A', mwEnh:me||0, swTier:st||'60A', swEnh:se||0, aTier:at||'60A', aEnh:ae||0
   });
   const P = (name,chars) => ({id:nid(), name, active:true, free:true, potion:1, chars});
@@ -38,8 +46,9 @@ function defaultDB(){
       P('黃賴',[ C('天弓',true), C('狂戰',true) ]),
     ],
     // 職業庫：BUFF / 屬性刻意留空，由你們自己填（我查不到 SEA 經典服的可靠來源，不編數字）
-    jobs:['護士','月光','光輝','毀滅','聖徒','時空','劍鬥','影舞','天弓','狂戰']
-           .map(n=>({name:n, base:'', elem:'', role:'', buffs:[], pct:0, note:''})),
+    jobs:['護士','月光','光輝','毀滅','聖徒','聖騎','時空','劍鬥','影舞','天弓','狂戰']
+           .map(n=>({name:n, base:'', elem:'', role:defRole(n), buffs:[], pct:0,
+                     dps:DPS_COEF[n]??1, note:''})),
     dungeons:[
       {key:'abp_h',   name:'大主教 地獄', size:4, req:0},
       {key:'giant_h', name:'巨人 地獄',   size:4, req:0},
@@ -53,7 +62,8 @@ function defaultDB(){
     gear:{ tiers:[{k:'50S',v:100},{k:'50L',v:130},{k:'60B',v:170},{k:'60A',v:210},{k:'70A',v:260}],
            wPer:12, aPer:5 },
     cfg:{ mode:'save', teamSize:4, minCarry:2, autoFill:true, balance:true,
-          resetDay:4, useFd:true, useCrit:false, sameElem:true },
+          resetDay:4, useFd:true, useCrit:true, sameElem:true,
+          critDmg:200, needHealer:true, needTank:true },
     meta:{ t:0 }
   };
 }
@@ -63,7 +73,7 @@ function normChar(c){
   return {
     id:nid(), name:String(c.name), job:c.job||c.name, elem:c.elem||'',
     carry:!!c.carry, active:c.active!==false,
-    atk:+c.atk||0, crit:+c.crit||0, def:+c.def||0, fd:+c.fd||0,
+    atk:+c.atk||0, crit:+c.crit||0, def:+c.def||0, fd:+c.fd||0, ea:+c.ea||0,
     mwTier:c.mwTier||c.wTier||'60A', mwEnh:+(c.mwEnh??c.wEnh)||0,
     swTier:c.swTier||c.wTier||'60A', swEnh:+(c.swEnh??c.wEnh)||0,
     aTier:c.aTier||'60A',            aEnh:+c.aEnh||0
@@ -79,8 +89,11 @@ function mergeDefaults(s){
   const d=defaultDB();
   s.people.forEach(normPerson);
   s.jobs     = Array.isArray(s.jobs)&&s.jobs.length ? s.jobs.map(j=>({
-                 name:j.name, base:j.base||'', elem:j.elem||'', role:j.role||'',
-                 buffs:Array.isArray(j.buffs)?j.buffs:[], pct:+j.pct||0, note:j.note||''})) : d.jobs;
+                 name:j.name, base:j.base||'', elem:j.elem||'', role:j.role||defRole(j.name),
+                 buffs:Array.isArray(j.buffs)?j.buffs:[], pct:+j.pct||0,
+                 dps:j.dps==null ? (DPS_COEF[j.name]??1) : (+j.dps||0), note:j.note||''})) : d.jobs;
+  // 預設職業庫新增過的職業（例如聖騎）要補進舊存檔，不然選單裡選不到
+  d.jobs.forEach(dj=>{ if(!s.jobs.some(j=>j.name===dj.name)) s.jobs.push(dj); });
   s.dungeons = Array.isArray(s.dungeons)&&s.dungeons.length ? s.dungeons : d.dungeons;
   s.clears   = s.clears && typeof s.clears==='object' ? s.clears : {};
   s.gear     = s.gear&&Array.isArray(s.gear.tiers)&&s.gear.tiers.length ? s.gear : d.gear;
@@ -202,12 +215,14 @@ function atkRatio(){
 }
 const isEst = c => !(c&&c.atk>0);
 const baseAtk = c => !c ? 0 : (c.atk>0 ? c.atk : Math.round(estOf(c)*atkRatio()));
-// 戰力 = 表攻 ×(1+終傷%) ×(1+爆擊%)，後兩項可在設定裡開關
+// 戰力 = 表攻 ×(1+終傷%) ×(1+屬攻%) ×(1 + 爆擊率% × (爆傷%-100)/100)
+// 屬攻跟終傷一樣是乘的。爆傷目前 200%，70 等版本改成 300% 時只要改設定值。
 function powerOf(c){
   if(!c) return 0;
   let v = baseAtk(c);
-  if(DB.cfg.useFd)   v *= 1 + (+c.fd||0)/100;
-  if(DB.cfg.useCrit) v *= 1 + (+c.crit||0)/100;
+  if(DB.cfg.useFd) v *= 1 + (+c.fd||0)/100;
+  v *= 1 + (+c.ea||0)/100;
+  if(DB.cfg.useCrit) v *= 1 + (+c.crit||0)/100 * (((+DB.cfg.critDmg||200)-100)/100);
   return Math.round(v);
 }
 function findChar(pid,cid){
@@ -225,9 +240,29 @@ const elemOf = c => c.elem || (jobOf(c)||{}).elem || '';
 const roleOf = c => (jobOf(c)||{}).role || '';
 const buffsOf= c => (jobOf(c)||{}).buffs || [];
 
+/* ---- 定位 ----
+   職業名是硬規則，職業庫只有在它沒被硬規則涵蓋時才有話語權。
+   分團時補師和坦「不算輸出戰力」，只算這團有沒有這個位子 —— 三種角色
+   的攻擊力用同一條公式算（顯示用），但團隊戰力平均只看輸出。          */
+function roleKind(c){
+  if(!c) return '輸出';
+  const n = c.job||c.name;
+  if(HEALER_JOBS.indexOf(n)>=0) return '補師';
+  if(TANK_JOBS.indexOf(n)>=0)   return '坦';
+  const r = roleOf(c);
+  return (r==='補師'||r==='坦') ? r : '輸出';
+}
+const isHealer = c => roleKind(c)==='補師';
+const isTank   = c => roleKind(c)==='坦';
+const isDps    = c => roleKind(c)==='輸出';
+// 分團平衡只吃這個：補師和坦一律 0，不會把團隊戰力灌胖
+const dpsPowerOf = c => isDps(c) ? powerOf(c) : 0;
+// 等效輸出：補師實際打得出來的量，只給人看，不進分團計算
+const effPowerOf = c => Math.round(powerOf(c) * (isDps(c) ? 1 : ((jobOf(c)||{}).dps ?? 1)));
+
 /* ---------------- 匯出 / 匯入 ---------------- */
 const packChar = c => ({name:c.name, job:c.job, elem:c.elem, carry:c.carry, active:c.active,
-  atk:c.atk, crit:c.crit, def:c.def, fd:c.fd,
+  atk:c.atk, crit:c.crit, def:c.def, fd:c.fd, ea:c.ea,
   mwTier:c.mwTier, mwEnh:c.mwEnh, swTier:c.swTier, swEnh:c.swEnh, aTier:c.aTier, aEnh:c.aEnh});
 const packPerson = p => ({name:p.name, active:p.active, free:p.free, potion:p.potion,
   t:p.t||0, chars:p.chars.map(packChar)});

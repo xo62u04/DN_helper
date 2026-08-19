@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>深淵分隊 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608191932">
+<link rel="stylesheet" href="style.css?v=202608192018">
 <style>
   .cols{display:grid;grid-template-columns:minmax(300px,360px) 1fr;gap:18px;align-items:start}
   @media(max-width:1050px){.cols{grid-template-columns:1fr}}
@@ -97,7 +97,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608191932"></script>
+<script src="shared.js?v=202608192018"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('index.html','SEA 經典服 · PC');
 document.getElementById('notice').innerHTML = storageOK ? ''
@@ -127,6 +127,7 @@ function renderRoster(){
         +'<input type="checkbox" '+(c.active?'checked':'')+' data-a="cactive" data-p="'+p.id+'" data-c="'+c.id+'">'
         +'<span class="cn">'+esc(c.name)+'</span>'
         +'<span class="tag '+(c.carry?'t-carry':'t-leech')+'">'+(c.carry?'帶':'躺')+'</span>'
+        +(isDps(c)?'':'<span class="tag '+(isHealer(c)?'t-heal':'t-tank')+'">'+(isHealer(c)?'補':'坦')+'</span>')
         +'<span class="pw '+(isEst(c)?'est':'')+'">'+powerOf(c)+'</span></div>';
     }).join('') : '<p class="hint">還沒有角色</p>';
     el.innerHTML=h+'</div>';
@@ -244,7 +245,14 @@ function fillSeats(rounds,people,cap,used){
     }
   });
 }
-function scoreOf(rounds,cap,minCarry,balance,pw){
+// 補師和坦能分散就不要擠一團。罰則只罰「夠分卻擠在一起」——
+// 補師總數少於團數時，後面的團本來就註定沒補，那不是排法的錯。
+function coverGap(rounds, rk, kind){
+  const total = rounds.reduce((n,r)=>n+r.slots.filter(s=>rk[s.pid+'/'+s.cid]===kind).length, 0);
+  const covered = rounds.filter(r=>r.slots.some(s=>rk[s.pid+'/'+s.cid]===kind)).length;
+  return Math.max(0, Math.min(total, rounds.length) - covered);
+}
+function scoreOf(rounds,cap,minCarry,balance,pw,rk){
   const last=rounds.length-1;
   let bad=0,empty=0,potions=0,prio=0; const avgs=[];
   rounds.forEach(function(r,i){
@@ -252,13 +260,18 @@ function scoreOf(rounds,cap,minCarry,balance,pw){
     empty+=Math.max(0,cap-r.slots.length);
     potions+=r.slots.filter(s=>s.potion).length;
     r.slots.forEach(s=>{ prio += s.busy ? (last-i) : i; });
-    avgs.push(r.slots.length ? r.slots.reduce((n,s)=>n+(pw[s.pid+'/'+s.cid]||0),0)/r.slots.length : 0);
+    // 團隊戰力只算輸出，補師和坦不列入平均
+    const dps=r.slots.filter(s=>rk[s.pid+'/'+s.cid]==='輸出');
+    avgs.push(dps.length ? dps.reduce((n,s)=>n+(pw[s.pid+'/'+s.cid]||0),0)/dps.length : 0);
   });
   const spread=avgs.length>1?Math.max.apply(null,avgs)-Math.min.apply(null,avgs):0;
   const mean=avgs.reduce((a,b)=>a+b,0)/(avgs.length||1);
   const rel=mean>0?spread/mean:0;
-  return {value: bad*1e7 + empty*1e4 + (balance?rel*3000:0) + prio*10 + potions,
-          bad, empty, potions, prio, spread:Math.round(spread)};
+  const healGap = DB.cfg.needHealer!==false ? coverGap(rounds,rk,'補師') : 0;
+  const tankGap = DB.cfg.needTank  !==false ? coverGap(rounds,rk,'坦')   : 0;
+  return {value: bad*1e7 + (healGap+tankGap)*2e5 + empty*1e4
+                 + (balance?rel*3000:0) + prio*10 + potions,
+          bad, empty, potions, prio, healGap, tankGap, spread:Math.round(spread)};
 }
 function solve(){
   const cfg=DB.cfg, allWater=cfg.mode==='all';
@@ -269,7 +282,9 @@ function solve(){
   people.forEach(p=>{ p.runs=runsOf(p,allWater); });
   const N=people.reduce((s,p)=>s+p.runs.length,0);
   if(!N) return null;
-  const pw={}; people.forEach(p=>p.chars.forEach(c=>{ pw[p.id+'/'+c.id]=powerOf(c); }));
+  const pw={}, rk={};
+  people.forEach(p=>p.chars.forEach(c=>{
+    pw[p.id+'/'+c.id]=powerOf(c); rk[p.id+'/'+c.id]=roleKind(c); }));
   const cap=Math.min(cfg.teamSize,people.length);
   const R=Math.max(Math.ceil(N/cap), Math.max.apply(null,people.map(p=>p.runs.length)));
   let best=null;
@@ -279,7 +294,7 @@ function solve(){
     repairCarry(rounds,cfg.minCarry);
     if(cfg.autoFill) fillSeats(rounds,people,cap,used);
     repairCarry(rounds,cfg.minCarry);
-    const sc=scoreOf(rounds,cap,cfg.minCarry,cfg.balance,pw);
+    const sc=scoreOf(rounds,cap,cfg.minCarry,cfg.balance,pw,rk);
     if(!best||sc.value<best.sc.value) best={rounds,sc};
   }
   return best.rounds.map(r=>({slots:r.slots}));
@@ -341,7 +356,10 @@ function toast(msg){
 /* ---------------- 輸出 ---------------- */
 const slotPower = s => { const f=findChar(s.pid,s.cid); return f.c?powerOf(f.c):0; };
 const slotEst   = s => { const f=findChar(s.pid,s.cid); return isEst(f.c); };
-const teamPower = t => t.slots.reduce((n,s)=>n+slotPower(s),0);
+const slotKind  = s => { const f=findChar(s.pid,s.cid); return f.c?roleKind(f.c):'輸出'; };
+// 隊伍戰力只加總輸出，補師和坦不列入 —— 他們算的是「有沒有」不是「多少」
+const teamPower = t => t.slots.filter(s=>slotKind(s)==='輸出').reduce((n,s)=>n+slotPower(s),0);
+const kindsIn   = (t,k) => t.slots.filter(s=>slotKind(s)===k).length;
 
 function renderTeams(){
   POWCACHE=null;
@@ -353,7 +371,8 @@ function renderTeams(){
   const full=teams.filter(t=>t.slots.length===cap).length;
   const badTeams=teams.filter(t=>carriesIn(t)<minCarry).length;
   const emptySeats=teams.reduce((n,t)=>n+Math.max(0,cap-t.slots.length),0);
-  const avgs=teams.filter(t=>t.slots.length).map(t=>teamPower(t)/t.slots.length);
+  const avgs=teams.map(t=>t.slots.filter(s=>slotKind(s)==='輸出').length)
+                  .map((n,i)=>n?teamPower(teams[i])/n:0).filter(v=>v>0);
   const spread=avgs.length>1?Math.round(Math.max.apply(null,avgs)-Math.min.apply(null,avgs)):0;
   const idle=DB.people.filter(p=>p.active&&!p.free).map(p=>p.name);
 
@@ -388,7 +407,13 @@ function renderTeams(){
     const bad=carriesIn(t)<minCarry||t.slots.length<cap;
     html+='<div class="round '+(bad?'bad':'')+'"><div class="rhead"><b>第 '+(ti+1)+' 隊</b>'
       +'<span class="st">'+t.slots.length+'/'+cap+' 人 · '+carriesIn(t)+' 帶 · '
-      +'<span class="p">戰力 '+teamPower(t)+'</span></span>'
+      +'<span class="p">輸出戰力 '+teamPower(t)+'</span> '
+      +'<span class="tag t-heal">補 '+kindsIn(t,'補師')+'</span> '
+      +'<span class="tag t-tank">坦 '+kindsIn(t,'坦')+'</span>'
+      +((!kindsIn(t,'補師')||!kindsIn(t,'坦'))
+        ? ' <span class="miss">缺'+[!kindsIn(t,'補師')?'補':'',!kindsIn(t,'坦')?'坦':''].filter(Boolean).join('、')+'</span>'
+        : '')
+      +'</span>'
       +'<button class="mini" onclick="delTeam('+ti+')">✕</button></div>';
     t.slots.forEach(function(s,i){
       const on=sel&&sel.t===ti&&sel.i===i;
@@ -397,6 +422,9 @@ function renderTeams(){
         +'<span class="who">'+esc(s.person)+'</span><span class="ch">'+esc(s.char)+'</span>'
         +'<span class="pw '+(slotEst(s)?'est':'')+'">'+slotPower(s)+'</span>'
         +'<span class="tag '+(s.carry?'t-carry':'t-leech')+'">'+(s.carry?'帶':'躺')+'</span>'
+        +(slotKind(s)==='輸出'?''
+          :'<span class="tag '+(slotKind(s)==='補師'?'t-heal':'t-tank')+'">'
+            +(slotKind(s)==='補師'?'補':'坦')+'</span>')
         +(s.potion?'<span class="tag t-potion">水</span>':'')
         +(s.busy?'<span class="tag t-late">後</span>':'')
         +'<button class="mini" onclick="event.stopPropagation();delSlot('+ti+','+i+')">✕</button></div>';
