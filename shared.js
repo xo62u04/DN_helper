@@ -19,7 +19,7 @@ const DPS_COEF = {'護士':0.75, '光輝':0.40, '聖徒':0.25, '毀滅':0.60, '�
 // 降抗是分屬性的，降火抗對打水的隊伍沒用，所以四種各記各的。
 // 降爆抗跟屬性無關，維持一種。
 const BUFF_RES  = ELEMS.filter(e=>e!=='無').map(e=>'降'+e+'抗');
-const BUFF_NUM  = ['增傷'].concat(BUFF_RES, ['降爆抗','增加屬攻','增加物攻']);
+const BUFF_NUM  = ['增傷','加三維'].concat(BUFF_RES, ['降爆抗','增加屬攻','增加物攻']);
 const BUFF_FLAG = ['爆擊','破防','回血','護盾','復活','解控','加速'];
 const BUFF_OLD  = ['降抗'];          // 舊資料寫過的籠統標籤，還認得但不再提供新增
 const BUFFTAGS  = BUFF_NUM.concat(BUFF_FLAG);
