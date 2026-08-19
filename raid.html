@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608192130">
+<link rel="stylesheet" href="style.css?v=202608192149">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -61,14 +61,18 @@
       <button onclick="regenLineups()">重新分團</button>
       <label><input type="checkbox" id="sameElem"> 同屬性優先同團</label>
       <span class="hint">同人數的副本共用同一份編組，不會每個副本各排一次。
-        名單有異動會自動重排，想換就按「重新分團」。
+        名單有異動會自動重排，「重新分團」會以還沒打完的人重排。
         「建議戰力」是每人平均，填了才會算裝備缺口；不知道就先留 0。</span>
+    </div>
+    <div class="msg tip">手動調整：點一個位子選取 → 點另一個位子交換，或點虛線空位移過去
+      （變暗的代表會撞到同一個人的兩隻角色，不能選）。位子右邊 ✕ 把人移出編組，
+      移出的人會列在該副本下方，點一下加回去。<b>改動會套用到同人數的所有副本</b>，因為那本來就是同一團。</div>
     </div>
     <div id="out"></div>
   </div>
 </div>
 
-<script src="shared.js?v=202608192130"></script>
+<script src="shared.js?v=202608192149"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -272,7 +276,15 @@ function gapReport(slots, size, req){
 const LINEUP_KEY='dn_helper_lineup_v1';
 const lineupCache={};
 
-// 名單指紋：只要參與的人變了就得重排，沒變就沿用舊的
+// 這個人數的副本裡，這隻角色還有沒有沒打的。全打完的就不用排進去了。
+function needsSize(c, size){
+  return DB.dungeons.filter(d=>d.size===size).some(d=>!isCleared(c.id, d.key));
+}
+function eligible(size){ return allChars(true).filter(r=>needsSize(r.c, size)); }
+
+// 名單指紋只看「有哪些人」，不看打勾狀態 ——
+// 打個勾就整個重排的話，編組又變成換來換去了。
+// 要以沒打過的人重排是「重新分團」那顆按鈕的事。
 function rosterSig(size){
   return size+'|'+allChars(true).map(r=>r.p.id+'/'+r.c.id).sort().join(',');
 }
@@ -299,7 +311,9 @@ function lineupFor(size, force){
     const t=hydrate(store[size].teams);
     if(t.length) return lineupCache[size]=t;
   }
-  const teams=buildTeams(allChars(true), size);
+  // 重排時只拿「這個人數的副本還有沒打完」的人
+  const pool=eligible(size);
+  const teams=buildTeams(pool.length?pool:allChars(true), size);
   store[size]={sig:sig, teams:teams.map(t=>t.map(s=>({pid:s.p.id, cid:s.c.id})))};
   saveLineups(store);
   return lineupCache[size]=teams;
@@ -310,14 +324,86 @@ function regenLineups(){
   genAll();
 }
 
+/* ================= 手動調整 =================
+   動的是基準編組，所以同人數的副本會一起變 —— 這就是「同一團」的意思。
+   已通關的人不會出現在畫面上，但他還在基準編組裡佔位子，
+   所以交換是用基準編組的索引在算的。                          */
+let pick=null;         // {size, t, i}  i 是基準編組裡的索引
+
+function persistLineup(size){
+  const store=loadLineups();
+  store[size]={sig:rosterSig(size),
+               teams:lineupCache[size].map(t=>t.map(s=>({pid:s.p.id, cid:s.c.id})))};
+  saveLineups(store);
+}
+// 同一個人的兩隻角色不能在同一團
+function clashes(team, s, skipIdx){
+  return team.some((x,k)=>k!==skipIdx && x.p.id===s.p.id);
+}
+function canPut(size,t,i){
+  if(!pick||pick.size!==size) return false;
+  const from=lineupCache[size][pick.t], to=lineupCache[size][t];
+  if(pick.t===t) return true;
+  const a=from[pick.i], b=(i==null?null:to[i]);
+  if(clashes(to,a,i)) return false;
+  if(b&&clashes(from,b,pick.i)) return false;
+  return true;
+}
+function clickSlot(size,t,i){
+  const L=lineupCache[size];
+  if(!pick){ pick={size,t,i}; return genAll(); }
+  if(pick.size===size&&pick.t===t&&pick.i===i){ pick=null; return genAll(); }
+  if(!canPut(size,t,i)){ return; }
+  const a=L[pick.t][pick.i], b=L[t][i];
+  L[pick.t][pick.i]=b; L[t][i]=a;
+  pick=null; persistLineup(size); genAll();
+}
+function clickEmpty(size,t){
+  if(!pick||pick.size!==size) return;
+  const L=lineupCache[size];
+  if(L[t].length>=DB.dungeons.filter(x=>x.size===size)[0].size) return;
+  if(!canPut(size,t,null)) return;
+  const a=L[pick.t].splice(pick.i,1)[0];
+  L[t].push(a);
+  pick=null;
+  L.forEach((t2,k)=>{ if(!t2.length) L.splice(k,1); });
+  persistLineup(size); genAll();
+}
+function addTeam(size){ lineupCache[size].push([]); persistLineup(size); genAll(); }
+function benchSlot(size,t,i){
+  const L=lineupCache[size];
+  L[t].splice(i,1);
+  if(!L[t].length) L.splice(t,1);
+  pick=null; persistLineup(size); genAll();
+}
+// 沒被排進任何一團的人（手動移掉的，或名單新加的）
+function benchOf(size){
+  const inTeam={};
+  (lineupCache[size]||[]).forEach(t=>t.forEach(s=>inTeam[s.p.id+'/'+s.c.id]=1));
+  return eligible(size).filter(r=>!inTeam[r.p.id+'/'+r.c.id]);
+}
+function addFromBench(size,pid,cid){
+  const L=lineupCache[size];
+  const p=DB.people.find(x=>x.id===pid), c=p&&p.chars.find(x=>x.id===cid);
+  if(!c) return;
+  const cap=DB.dungeons.filter(x=>x.size===size)[0].size;
+  let t=L.findIndex(t2=>t2.length<cap && !clashes(t2,{p,c},-1));
+  if(t<0){ L.push([]); t=L.length-1; }
+  L[t].push({p,c});
+  persistLineup(size); genAll();
+}
+
 /* ================= 產生分團 ================= */
 function genAll(){
   const out=document.getElementById('out'); out.innerHTML='';
   DB.dungeons.forEach(function(d){
-    // 編組是固定的，每個副本共用；這裡只標出誰這週已經打完
-    const teams=lineupFor(d.size);
+    // 編組是固定的，每個副本共用。打完的人直接從團裡拿掉，
+    // 剩下的人維持原本的組合，不會因為有人打完就重洗。
+    const base=lineupFor(d.size);
+    // 每個位子記住它在基準編組裡的索引，手動交換才動得到正確的人
+    const teams=base.map(t=>t.map((s,bi)=>({s:s,bi:bi})).filter(x=>!isCleared(x.s.c.id,d.key)));
     const pending=allChars(true).filter(r=>!isCleared(r.c.id,d.key));
-    const live=teams.filter(t=>t.some(s=>!isCleared(s.c.id,d.key)));   // 還有人要打的團
+    const live=teams.filter(t=>t.length);
     const div=document.createElement('div');
     div.className='dcard';
     let h='<div class="dhead"><span class="nm">'+esc(d.name)+'</span>'
@@ -325,13 +411,15 @@ function genAll(){
         + '<label class="hint">建議戰力/人</label>'
         + '<input type="number" value="'+(d.req||0)+'" data-dk="'+d.key+'" style="width:100px">'
         + '<span class="hint">待打 '+pending.length+' 隻 · 還要開 '+live.length+' 團 · 合計要找 '
-        + live.reduce((n,t)=>n+Math.max(0,d.size-t.length),0) + ' 個外援</span></div>';
+        + live.reduce((n,t)=>n+Math.max(0,d.size-t.length),0) + ' 個外援</span>'
+        + '<button class="mini" onclick="addTeam('+d.size+')">＋加一團</button></div>';
     if(!pending.length){
       h+='<div class="msg ok">本週全部打完了。</div>';
     }else{
       h+='<div class="teams">';
-      teams.forEach(function(slots,i){
-        const done=slots.every(s=>isCleared(s.c.id,d.key));
+      teams.forEach(function(vis,i){
+        if(!vis.length) return;
+        const slots=vis.map(x=>x.s);
         const open=Math.max(0,d.size-slots.length);
         // 團隊戰力＝等效輸出加總（補師和坦已照職業係數折算）
         const tp=slots.reduce((n,s)=>n+effPowerOf(s.c),0);
@@ -340,33 +428,54 @@ function genAll(){
         const nHeal=slots.filter(s=>isHealer(s.c)).length;
         const nTank=slots.filter(s=>isTank(s.c)).length;
         const lack=[]; if(!nHeal) lack.push('補'); if(!nTank) lack.push('坦');
-        h+='<div class="team '+(open?'short':'')+' '+(done?'alldone':'')+'">'
+        h+='<div class="team '+(open?'short':'')+'">'
           +'<div class="thead"><b>第 '+(i+1)+' 團</b>'
-          +(done?' <span class="tag t-done">本週打完</span>':'')
           +'<span>'+slots.length+'/'+d.size+' 人 · 等效輸出 '+tp
           +' <span class="tag t-heal">補 '+nHeal+'</span> <span class="tag t-tank">坦 '+nTank+'</span> '
           +elTag
           +(lack.length?' <span class="miss">缺'+lack.join('、')+'</span>':'')
           +'</span></div>';
-        slots.forEach(function(s){
-          const e=elemOf(s.c), k=roleKind(s.c);
+        vis.forEach(function(x){
+          const s=x.s, e=elemOf(s.c), k=roleKind(s.c);
           const kc = k==='補師'?'t-heal' : k==='坦'?'t-tank' : 't-dps';
-          h+='<div class="slot'+(isCleared(s.c.id,d.key)?' cleared':'')+'"><span class="who">'+esc(s.p.name)+'</span>'
+          const on = pick&&pick.size===d.size&&pick.t===i&&pick.i===x.bi;
+          const no = pick&&pick.size===d.size&&!on&&!canPut(d.size,i,x.bi);
+          h+='<div class="slot pickable '+(on?'sel':'')+' '+(no?'no':'')+'"'
+            +' onclick="clickSlot('+d.size+','+i+','+x.bi+')">'
+            +'<span class="who">'+esc(s.p.name)+'</span>'
             +'<span class="ch">'+esc(s.c.name)+'</span>'
             +(e?'<span class="tag e-'+e+'">'+e+'</span>':'')
             +'<span class="tag '+kc+'">'+(k==='補師'?'補':k)+'</span>'
             +'<span class="pw">'+effPowerOf(s.c)
             +(isDps(s.c)?'':'<span class="hint" style="font-size:12px"> ('+powerOf(s.c)+'×'+Math.round(coefOf(s.c)*100)+'%)</span>')
-            +'</span></div>';
+            +'</span>'
+            +'<button class="mini" onclick="event.stopPropagation();benchSlot('+d.size+','+i+','+x.bi+')">✕</button>'
+            +'</div>';
         });
-        for(let k=0;k<open;k++) h+='<div class="slot open">— 待補外援 —</div>';
+        const canDrop = pick&&pick.size===d.size&&canPut(d.size,i,null);
+        for(let k=0;k<open;k++)
+          h+='<div class="slot open '+(pick&&pick.size===d.size?(canDrop?'drop':'no'):'')+'"'
+            +' onclick="clickEmpty('+d.size+','+i+')">'
+            +(pick&&pick.size===d.size?'▸ 移到這裡':'— 待補外援 —')+'</div>';
         h+=buffLine(slots)+recommend(slots,open)+gapReport(slots,d.size,+d.req||0)+'</div>';
       });
       h+='</div>';
+      const bench=benchOf(d.size).filter(r=>!isCleared(r.c.id,d.key));
+      if(bench.length)
+        h+='<div class="bench"><span class="hint">沒排進團的：</span>'
+          + bench.map(r=>'<button class="mini" data-bench="'+d.size+'" data-bp="'+r.p.id+'" data-bc="'+r.c.id+'">'
+              + esc(r.p.name)+'·'+esc(r.c.name)+' ＋</button>').join('')
+          + '</div>';
     }
     div.innerHTML=h; out.appendChild(div);
   });
 }
+// 板凳按鈕用委派接，免得把 id 塞進 onclick 字串裡跟引號打架
+document.getElementById('out').addEventListener('click', function(e){
+  const b=e.target.closest&&e.target.closest('button[data-bench]');
+  if(!b) return;
+  addFromBench(+b.dataset.bench, b.dataset.bp, b.dataset.bc);
+});
 document.getElementById('out').addEventListener('change', function(e){
   const dk=e.target.dataset.dk; if(!dk) return;
   const d=DB.dungeons.find(x=>x.key===dk); if(!d) return;

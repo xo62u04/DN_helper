@@ -73,6 +73,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .bc-num{color:#ffd479;border-color:#ffd47955;background:#ffd4790f}
 .bc-flag{color:var(--dim);border-color:var(--line)}
 .bc-empty{color:var(--warn);border-color:var(--warn);background:#ff6b6b12}
+.bench{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.slot.pickable{cursor:pointer}
+.slot.pickable:hover{background:var(--hover)}
+.slot.sel{outline:2px solid var(--acc);background:var(--hover)}
+.slot.no{opacity:.35;cursor:not-allowed}
+.slot.drop{border-style:dashed;border-color:var(--acc);color:var(--acc);cursor:pointer}
 .bline{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:8px 0 0;
        font-size:13px;color:var(--dim)}
 code{background:var(--panel2);border:1px solid var(--grid);border-radius:4px;padding:1px 6px;font-size:13px}
