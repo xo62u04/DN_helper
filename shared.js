@@ -407,7 +407,7 @@ const Sync = (function(){
     state.dirty=true; emit(state.msg);
     if(!cfg().auto || !canWrite() || !ready()) return;
     clearTimeout(state.timer);
-    state.timer=setTimeout(()=>{ push().catch(()=>{}); }, 4000);   // 連續改動合併成一次 commit
+    state.timer=setTimeout(()=>{ push().catch(()=>{}); }, 10000);  // 停手 10 秒才上傳，連續改動合併成一次 commit
   }
   function startPolling(sec){
     clearInterval(state.poll);
