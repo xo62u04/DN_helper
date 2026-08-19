@@ -65,7 +65,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 1787139588649,
+      "t": 1787139603098,
       "chars": [
         {
           "name": "毀滅",
@@ -87,7 +87,7 @@
         {
           "name": "聖徒",
           "job": "聖徒",
-          "elem": "",
+          "elem": "光",
           "carry": false,
           "active": true,
           "atk": 0,
