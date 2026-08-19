@@ -55,7 +55,11 @@ wrangler secret put TEAM_KEY
 wrangler deploy
 ```
 
-成功會印出網址，長得像 `https://dn-helper-relay.<你的帳號>.workers.dev`。
+成功會印出網址。這個 repo 目前已經部署好了，網址是：
+
+```
+https://dn-helper-relay.linchengway000.workers.dev
+```
 
 ## 6. 每個人設定一次
 
@@ -68,13 +72,13 @@ wrangler deploy
 ## 驗證有沒有活著
 
 ```bash
-curl https://dn-helper-relay.<你的帳號>.workers.dev/
+curl https://dn-helper-relay.linchengway000.workers.dev/
 ```
 
 回 `DN Helper relay OK` 就是活的。再測讀取（把 `<密碼>` 換成你的 TEAM_KEY）：
 
 ```bash
-curl -H "X-Team-Key: <密碼>" https://dn-helper-relay.<你的帳號>.workers.dev/state
+curl -H "X-Team-Key: <密碼>" https://dn-helper-relay.linchengway000.workers.dev/state
 ```
 
 回一包含 `content` 和 `sha` 的 JSON 就代表讀寫路徑通了。
