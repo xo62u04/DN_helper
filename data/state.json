@@ -65,7 +65,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 1787139533241,
+      "t": 1787139546737,
       "chars": [
         {
           "name": "毀滅",
@@ -111,11 +111,11 @@
           "crit": 0,
           "def": 0,
           "fd": 0,
-          "mwTier": "70A",
+          "mwTier": "60A",
           "mwEnh": 0,
-          "swTier": "70A",
+          "swTier": "60A",
           "swEnh": 0,
-          "aTier": "70A",
+          "aTier": "60A",
           "aEnh": 0
         }
       ]
