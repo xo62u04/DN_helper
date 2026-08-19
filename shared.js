@@ -26,8 +26,9 @@ const BUFFTAGS  = BUFF_NUM.concat(BUFF_FLAG);
 const isNumBuff = k => BUFF_NUM.indexOf(k)>=0 || BUFF_OLD.indexOf(k)>=0;
 // 這個標籤是針對哪個屬性的降抗；不是降抗就回空字串
 const resElemOf = k => BUFF_RES.indexOf(k)>=0 ? k.slice(1,-1) : '';
-// 新加一張有數值的 BUFF 卡片時先給的數字，多數職業都在這附近，不對再改
-const BUFF_DEFAULT = 15;
+// 新加卡片時先給的數字。只有降抗那四種大致都落在 15%，
+// 增傷／降爆抗／屬攻／物攻每個職業差很多，不亂猜，留 0 讓人自己填。
+const buffDefault = k => BUFF_RES.indexOf(k)>=0 ? 15 : 0;
 
 /* BUFF 一律存成 [{k:標籤, v:百分比}]。舊資料是純字串陣列，v 補 0。 */
 function normBuffs(list, legacyPct){
