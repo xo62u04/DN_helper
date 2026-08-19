@@ -221,11 +221,11 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 0,
+      "t": 1787146857302,
       "chars": [
         {
-          "name": "天弓",
-          "job": "天弓",
+          "name": "審判",
+          "job": "審判",
           "elem": "",
           "carry": true,
           "active": true,
@@ -242,8 +242,8 @@
           "aEnh": 0
         },
         {
-          "name": "狂戰",
-          "job": "狂戰",
+          "name": "薩滿",
+          "job": "薩滿",
           "elem": "",
           "carry": true,
           "active": true,
@@ -388,6 +388,24 @@
       "buffs": [],
       "dps": 1,
       "note": ""
+    },
+    {
+      "name": "深淵",
+      "base": "",
+      "elem": "暗",
+      "role": "輸出",
+      "buffs": [],
+      "dps": 1,
+      "note": ""
+    },
+    {
+      "name": "薩滿",
+      "base": "",
+      "elem": "暗",
+      "role": "輸出",
+      "buffs": [],
+      "dps": 1,
+      "note": ""
     }
   ],
   "dungeons": [
@@ -508,6 +526,6 @@
     "needTank": true
   },
   "meta": {
-    "t": 1787146826476
+    "t": 1787146847848
   }
 }
