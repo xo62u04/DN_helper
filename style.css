@@ -68,7 +68,22 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .miss{color:var(--warn);font-size:13px}
 
 /* 職業庫的 BUFF 標籤：解析結果直接顯示在輸入框下面，打錯看得出來 */
-.bchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.bchips{display:flex;gap:5px;flex-wrap:wrap}
+.bchips:not(:empty){margin-bottom:6px}
+/* BUFF 卡片：數值直接長在卡片上，✕ 移除 */
+.bchip .bv{width:52px;padding:0 4px;font-size:12.5px;background:transparent;
+           border:none;border-bottom:1px solid currentColor;border-radius:0;color:inherit;
+           text-align:right}
+.bchip .bv:focus{outline:none;background:#ffffff10}
+.bchip .bx{background:none;border:none;color:inherit;opacity:.5;cursor:pointer;
+           padding:0 0 0 3px;font-size:12px;line-height:1}
+.bchip .bx:hover{opacity:1;color:var(--warn)}
+.badds{display:flex;gap:4px;flex-wrap:wrap}
+.badd{font-size:12.5px;padding:1px 7px;border-radius:4px;border:1px dashed var(--line);
+      background:none;color:var(--dim);cursor:pointer}
+.badd:hover{border-color:var(--acc);color:var(--acc);border-style:solid}
+.badd.n{border-color:#ffd47955;color:#ffd479aa}
+.badd.n:hover{border-color:#ffd479;color:#ffd479}
 .bchip{font-size:12.5px;padding:1px 7px;border-radius:4px;border:1px solid;white-space:nowrap}
 .bc-num{color:#ffd479;border-color:#ffd47955;background:#ffd4790f}
 .bc-flag{color:var(--dim);border-color:var(--line)}

@@ -42,13 +42,6 @@ function buffTotals(list){
   (list||[]).forEach(b=>{ if(isNumBuff(b.k)) t[b.k]=(t[b.k]||0)+(+b.v||0); });
   return t;
 }
-const buffText = list => (list||[]).map(b=>isNumBuff(b.k)&&b.v ? b.k+':'+b.v : b.k).join(',');
-function parseBuffs(txt){
-  return String(txt||'').split(/[,、]+/).map(x=>x.trim()).filter(Boolean).map(function(x){
-    const m=x.match(/^(.+?)\s*[:：=]\s*(-?[\d.]+)\s*[%％]?$/);
-    return m ? {k:m[1].trim(), v:+m[2]||0} : {k:x.replace(/[%％]$/,'').trim(), v:0};
-  }).filter(b=>b.k);
-}
 
 let storageOK = true;
 const LS = {
