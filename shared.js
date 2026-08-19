@@ -12,8 +12,42 @@ const HEALER_JOBS = ['護士','光輝','聖徒'];
 const TANK_JOBS   = ['毀滅','聖騎'];
 // 補師的實際輸出大約是同裝輸出的幾成（團長給的實測值），只影響顯示，不影響分團
 const DPS_COEF = {'護士':0.75, '光輝':0.40, '聖徒':0.25};
-// BUFF 分類：分團演算法用這些標籤判斷一團缺什麼
-const BUFFTAGS = ['增傷','爆擊','破防','減抗','回血','護盾','復活','解控','加速'];
+// BUFF 分類：分團演算法用這些標籤判斷一團缺什麼。
+// 前五個是「有數值」的增益，每個職業給的百分比都不一樣，各自記各自的；
+// 後面那些是有沒有的問題，不填數值。
+const BUFF_NUM  = ['增傷','降抗','降爆抗','增加屬攻','增加物攻'];
+const BUFF_FLAG = ['爆擊','破防','回血','護盾','復活','解控','加速'];
+const BUFFTAGS  = BUFF_NUM.concat(BUFF_FLAG);
+const isNumBuff = k => BUFF_NUM.indexOf(k)>=0;
+
+/* BUFF 一律存成 [{k:標籤, v:百分比}]。舊資料是純字串陣列，v 補 0。 */
+function normBuffs(list, legacyPct){
+  const out=(Array.isArray(list)?list:[]).map(b=>
+    typeof b==='string' ? {k:b.trim(), v:0} : {k:String(b.k||'').trim(), v:+b.v||0}
+  ).filter(b=>b.k);
+  // 舊版只有一個總增傷%，掛到「增傷」那格上，沒有的話就補一筆
+  const lp=+legacyPct||0;
+  if(lp>0){
+    const hit=out.find(b=>b.k==='增傷');
+    if(hit){ if(!hit.v) hit.v=lp; }
+    else out.push({k:'增傷', v:lp});
+  }
+  return out;
+}
+const buffKeys   = list => (list||[]).map(b=>b.k);
+// 各類別各自加總，不同類別不互相混，因為它們在傷害上的作用不一樣
+function buffTotals(list){
+  const t={};
+  (list||[]).forEach(b=>{ if(isNumBuff(b.k)) t[b.k]=(t[b.k]||0)+(+b.v||0); });
+  return t;
+}
+const buffText = list => (list||[]).map(b=>isNumBuff(b.k)&&b.v ? b.k+':'+b.v : b.k).join(',');
+function parseBuffs(txt){
+  return String(txt||'').split(/[,、]+/).map(x=>x.trim()).filter(Boolean).map(function(x){
+    const m=x.match(/^(.+?)\s*[:：=]\s*(-?[\d.]+)\s*[%％]?$/);
+    return m ? {k:m[1].trim(), v:+m[2]||0} : {k:x.replace(/[%％]$/,'').trim(), v:0};
+  }).filter(b=>b.k);
+}
 
 let storageOK = true;
 const LS = {
@@ -47,7 +81,7 @@ function defaultDB(){
     ],
     // 職業庫：BUFF / 屬性刻意留空，由你們自己填（我查不到 SEA 經典服的可靠來源，不編數字）
     jobs:['護士','月光','光輝','毀滅','聖徒','聖騎','時空','劍鬥','影舞','天弓','狂戰']
-           .map(n=>({name:n, base:'', elem:'', role:defRole(n), buffs:[], pct:0,
+           .map(n=>({name:n, base:'', elem:'', role:defRole(n), buffs:[],
                      dps:DPS_COEF[n]??1, note:''})),
     dungeons:[
       {key:'abp_h',   name:'大主教 地獄', size:4, req:0},
@@ -90,7 +124,7 @@ function mergeDefaults(s){
   s.people.forEach(normPerson);
   s.jobs     = Array.isArray(s.jobs)&&s.jobs.length ? s.jobs.map(j=>({
                  name:j.name, base:j.base||'', elem:j.elem||'', role:j.role||defRole(j.name),
-                 buffs:Array.isArray(j.buffs)?j.buffs:[], pct:+j.pct||0,
+                 buffs:normBuffs(j.buffs, j.pct),
                  dps:j.dps==null ? (DPS_COEF[j.name]??1) : (+j.dps||0), note:j.note||''})) : d.jobs;
   // 預設職業庫新增過的職業（例如聖騎）要補進舊存檔，不然選單裡選不到
   d.jobs.forEach(dj=>{ if(!s.jobs.some(j=>j.name===dj.name)) s.jobs.push(dj); });

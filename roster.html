@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>角色資料 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608192018">
+<link rel="stylesheet" href="style.css?v=202608192124">
 <style>
   td.gear select{padding:3px 2px;font-size:14px}
   td.gear input{width:44px;padding:3px 4px;font-size:14px}
@@ -73,9 +73,12 @@
       <button onclick="addJob()">＋職業</button>
     </div>
     <p class="hint" style="margin:10px 0 0">
-      <b>BUFF 欄</b>用逗號分隔標籤，分團頁會靠這些標籤判斷一團缺什麼、該補什麼職業。建議用這幾個字：
-      <b>增傷、爆擊、破防、減抗、回血、護盾、復活、解控、加速</b>（可自己加別的）。
-      <b>增傷%</b>填這個職業給隊友的主要增傷數字，用來排「誰跟誰一團比較賺」。
+      <b>BUFF 欄</b>用逗號分隔，每個標籤各自帶自己的數值，寫成 <b>標籤:數值</b>，例如
+      <code>增傷:15,降抗:20,增加屬攻:10,加速</code>。
+      這五種是有數值的，各算各的、不會混在一起：
+      <b>增傷、降抗、降爆抗、增加屬攻、增加物攻</b>。
+      這幾種是有沒有的問題，不用填數值：<b>爆擊、破防、回血、護盾、復活、解控、加速</b>（可自己加別的）。
+      分團頁會靠這些判斷一團缺什麼、該補什麼職業，也用來排「誰跟誰一團比較賺」。
       屬性填 火／水／光／暗；分團時會盡量把同屬性的排在一起。
     </p>
   </div>
@@ -111,7 +114,7 @@
 
 </div>
 
-<script src="shared.js?v=202608192018"></script>
+<script src="shared.js?v=202608192124"></script>
 <script>
 /* ---------- 初始化 ---------- */
 document.getElementById('nav').innerHTML = navBar('roster.html','SEA 經典服 · PC');
@@ -249,7 +252,8 @@ function addChar(pid){
   touchPerson(p);
   p.chars.push({id:nid(), name, job:DB.jobs.some(j=>j.name===name)?name:'', elem:'', carry:true, active:true,
                 atk:0,crit:0,def:0,fd:0,ea:0, mwTier:t,mwEnh:0, swTier:t,swEnh:0, aTier:t,aEnh:0});
-  if(!DB.jobs.some(j=>j.name===name)) DB.jobs.push({name, base:'', elem:'', role:'', buffs:[], pct:0, note:''});
+  if(!DB.jobs.some(j=>j.name===name))
+    DB.jobs.push({name, base:'', elem:'', role:defRole(name), buffs:[], dps:DPS_COEF[name]??1, note:''});
   saveDB(); renderRoster(); renderJobs();
   document.querySelector('input[data-a="newc"][data-p="'+pid+'"]').focus();
 }
@@ -261,9 +265,18 @@ function addPerson(){
 }
 
 /* ---------- 職業庫 ---------- */
+// 把打進去的文字解析結果顯示成標籤，有數值的標出來，沒填數值的用灰底提醒
+function buffChips(list){
+  if(!(list||[]).length) return '';
+  return list.map(function(b){
+    const num=isNumBuff(b.k);
+    const cls=!num ? 'bc-flag' : (b.v ? 'bc-num' : 'bc-empty');
+    return '<span class="bchip '+cls+'">'+esc(b.k)+(num?' '+(b.v||0)+'%':'')+'</span>';
+  }).join('');
+}
 function renderJobs(){
   let h='<tr><th class="n">職業</th><th class="n">系別</th><th class="n">屬性</th><th class="n">定位</th>'
-      + '<th>提供的隊伍 BUFF（逗號分隔）</th><th class="num">增傷%</th><th>備註</th><th></th></tr>';
+      + '<th>提供的隊伍 BUFF（標籤:數值，逗號分隔）</th><th>備註</th><th></th></tr>';
   DB.jobs.forEach((j,i)=>{
     h+='<tr>'
       +'<td class="n"><input type="text" value="'+esc(j.name)+'" data-j="'+i+'" data-f="name"></td>'
@@ -271,18 +284,24 @@ function renderJobs(){
       +'<td class="n"><select data-j="'+i+'" data-f="elem">'+elemOpts(j.elem)+'</select></td>'
       +'<td class="n"><select data-j="'+i+'" data-f="role"><option value=""></option>'
       + ROLES.map(r=>'<option'+(r===j.role?' selected':'')+'>'+r+'</option>').join('')+'</select></td>'
-      +'<td><input type="text" value="'+esc((j.buffs||[]).join(','))+'" data-j="'+i+'" data-f="buffs" placeholder="例：增傷,破防,加速"></td>'
-      +'<td class="num"><input type="number" style="width:70px" value="'+(j.pct||'')+'" data-j="'+i+'" data-f="pct"></td>'
+      +'<td><input type="text" value="'+esc(buffText(j.buffs))+'" data-j="'+i+'" data-f="buffs" '
+      +   'placeholder="例：增傷:15,降抗:20,增加屬攻:10,加速"><div class="bchips">'+buffChips(j.buffs)+'</div></td>'
       +'<td><input type="text" value="'+esc(j.note)+'" data-j="'+i+'" data-f="note"></td>'
       +'<td><button class="mini" data-j="'+i+'" data-f="del">✕</button></td></tr>';
   });
   document.getElementById('jobs').innerHTML=h;
 
   const blank=DB.jobs.filter(j=>!j.elem||!(j.buffs||[]).length).map(j=>j.name);
-  document.getElementById('jobwarn').innerHTML = blank.length
-    ? '<div class="msg warn">還沒填屬性或 BUFF 的職業：<b>'+esc(blank.join('、'))
-      +'</b>。沒填的話，分團只會照裝備戰力排，不會做屬性分團也不會給補位職業建議。</div>'
-    : '<div class="msg ok">職業庫已填完，分團頁可以做屬性分團與補位建議。</div>';
+  const noval=DB.jobs.filter(j=>(j.buffs||[]).some(b=>isNumBuff(b.k)&&!b.v)).map(j=>j.name);
+  let w='';
+  if(blank.length)
+    w+='<div class="msg warn">還沒填屬性或 BUFF 的職業：<b>'+esc(blank.join('、'))
+      +'</b>。沒填的話，分團只會照裝備戰力排，不會做屬性分團也不會給補位職業建議。</div>';
+  if(noval.length)
+    w+='<div class="msg tip">這些職業的 BUFF 有標籤但沒填數值：<b>'+esc(noval.join('、'))
+      +'</b>。補上數值（例如 <b>增傷:15</b>）才排得出誰跟誰一團比較賺。</div>';
+  if(!w) w='<div class="msg ok">職業庫已填完，分團頁可以做屬性分團與補位建議。</div>';
+  document.getElementById('jobwarn').innerHTML=w;
 }
 document.getElementById('jobs').addEventListener('change', onJob);
 document.getElementById('jobs').addEventListener('click', e=>{ if(e.target.dataset.f==='del') onJob(e); });
@@ -291,8 +310,7 @@ function onJob(e){
   if(isNaN(i)||!f) return;
   const j=DB.jobs[i];
   if(f==='del'){ if(!confirm('刪除職業「'+j.name+'」？')) return; DB.jobs.splice(i,1); }
-  else if(f==='buffs') j.buffs=e.target.value.split(/[,、\s]+/).filter(Boolean);
-  else if(f==='pct')   j.pct=+e.target.value||0;
+  else if(f==='buffs') j.buffs=parseBuffs(e.target.value);
   else if(f==='name'){
     const old=j.name, nw=e.target.value.trim()||old;
     DB.people.forEach(p=>p.chars.forEach(c=>{ if(c.job===old) c.job=nw; }));
@@ -304,7 +322,7 @@ function onJob(e){
 function addJob(){
   const inp=document.getElementById('newJob');
   const name=inp.value.trim(); if(!name) return inp.focus();
-  DB.jobs.push({name, base:'', elem:'', role:'', buffs:[], pct:0, note:''});
+  DB.jobs.push({name, base:'', elem:'', role:defRole(name), buffs:[], dps:DPS_COEF[name]??1, note:''});
   inp.value=''; touchMeta(); saveDB(); renderJobs(); renderRoster();
 }
 

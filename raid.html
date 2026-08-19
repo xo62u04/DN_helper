@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608192018">
+<link rel="stylesheet" href="style.css?v=202608192124">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -61,7 +61,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608192018"></script>
+<script src="shared.js?v=202608192124"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -166,6 +166,24 @@ function scoreTeams(rounds,size){
        + rounds.reduce((n,r)=>n+Math.max(0,size-r.slots.length),0);
 }
 
+/* ---- 這團的隊伍增益合計：各類別各自加總，不同類別不相加 ---- */
+function buffLine(slots){
+  const tot={}; const flags={};
+  slots.forEach(function(s){
+    buffsOf(s.c).forEach(function(b){
+      if(isNumBuff(b.k)) tot[b.k]=(tot[b.k]||0)+(+b.v||0);
+      else flags[b.k]=1;
+    });
+  });
+  const nums=Object.keys(tot).filter(k=>tot[k]);
+  const fl=Object.keys(flags);
+  if(!nums.length&&!fl.length) return '';
+  return '<div class="bline">團隊增益：'
+    + nums.map(k=>'<span class="bchip bc-num">'+esc(k)+' '+tot[k]+'%</span>').join('')
+    + fl.map(k=>'<span class="bchip bc-flag">'+esc(k)+'</span>').join('')
+    + '</div>';
+}
+
 /* ---- 補位建議：算這團缺哪些 BUFF / 定位，再從職業庫挑人 ---- */
 function jobDbReady(){ return DB.jobs.some(j=>(j.buffs||[]).length||j.elem); }
 function recommend(slots, openCount){
@@ -177,10 +195,10 @@ function recommend(slots, openCount){
       + '<br>先給通用原則：外援 3 個位子至少留 <b>1 個補</b>、<b>1 個能扛/拉怪</b>，剩下 1 個補團隊最缺的增傷 BUFF。</div>';
   }
   // 這個版本「有人提供」的 BUFF 全集
-  const universe={}; DB.jobs.forEach(j=>(j.buffs||[]).forEach(b=>universe[b]=1));
+  const universe={}; DB.jobs.forEach(j=>(j.buffs||[]).forEach(b=>universe[b.k]=1));
   const have={}, roles={}; const elems={};
   slots.forEach(function(s){
-    buffsOf(s.c).forEach(b=>have[b]=1);
+    buffsOf(s.c).forEach(b=>have[b.k]=1);
     const r=roleKind(s.c); roles[r]=(roles[r]||0)+1;
     const e=elemOf(s.c); if(e) elems[e]=(elems[e]||0)+1;
   });
@@ -190,10 +208,12 @@ function recommend(slots, openCount){
 
   const scored=DB.jobs.map(function(j){
     let s=0;
-    (j.buffs||[]).forEach(b=>{ if(missBuff.indexOf(b)>=0) s+=3; });
+    (j.buffs||[]).forEach(b=>{ if(missBuff.indexOf(b.k)>=0) s+=3; });
     if(missRole.indexOf(j.role)>=0) s+=5;
     if(mainElem&&j.elem===mainElem) s+=2;
-    s += (+j.pct||0)/20;
+    // 有數值的增益全部加起來當作「帶這隻比較賺」的權重
+    const tot=buffTotals(j.buffs);
+    s += Object.keys(tot).reduce((n,k)=>n+tot[k],0)/20;
     return {j:j, s:s};
   }).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
 
@@ -282,7 +302,7 @@ function genAll(){
             +'<span class="pw">'+powerOf(s.c)+(isDps(s.c)?'':'*')+'</span></div>';
         });
         for(let k=0;k<open;k++) h+='<div class="slot open">— 待補外援 —</div>';
-        h+=recommend(slots,open)+gapReport(slots,d.size,+d.req||0)+'</div>';
+        h+=buffLine(slots)+recommend(slots,open)+gapReport(slots,d.size,+d.req||0)+'</div>';
       });
       h+='</div>';
     }

@@ -66,6 +66,16 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .t-tank{color:#ffb648;border-color:#ffb648}
 .t-dps{color:var(--dim);border-color:var(--line)}
 .miss{color:var(--warn);font-size:13px}
+
+/* 職業庫的 BUFF 標籤：解析結果直接顯示在輸入框下面，打錯看得出來 */
+.bchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.bchip{font-size:12.5px;padding:1px 7px;border-radius:4px;border:1px solid;white-space:nowrap}
+.bc-num{color:#ffd479;border-color:#ffd47955;background:#ffd4790f}
+.bc-flag{color:var(--dim);border-color:var(--line)}
+.bc-empty{color:var(--warn);border-color:var(--warn);background:#ff6b6b12}
+.bline{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:8px 0 0;
+       font-size:13px;color:var(--dim)}
+code{background:var(--panel2);border:1px solid var(--grid);border-radius:4px;padding:1px 6px;font-size:13px}
 .e-火{color:var(--fire);border-color:var(--fire)}
 .e-水{color:var(--ice);border-color:var(--ice)}
 .e-光{color:var(--light);border-color:var(--light)}
