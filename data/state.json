@@ -65,7 +65,7 @@
       "active": true,
       "free": true,
       "potion": 1,
-      "t": 1787139555353,
+      "t": 1787139572282,
       "chars": [
         {
           "name": "毀滅",
@@ -105,7 +105,7 @@
           "name": "毀滅",
           "job": "毀滅",
           "elem": "",
-          "carry": true,
+          "carry": false,
           "active": true,
           "atk": 0,
           "crit": 0,
@@ -116,23 +116,6 @@
           "swTier": "60A",
           "swEnh": 0,
           "aTier": "60A",
-          "aEnh": 0
-        },
-        {
-          "name": "ㄐㄐ",
-          "job": "",
-          "elem": "",
-          "carry": true,
-          "active": true,
-          "atk": 0,
-          "crit": 0,
-          "def": 0,
-          "fd": 0,
-          "mwTier": "70A",
-          "mwEnh": 0,
-          "swTier": "70A",
-          "swEnh": 0,
-          "aTier": "70A",
           "aEnh": 0
         }
       ]
