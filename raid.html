@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608202155">
+<link rel="stylesheet" href="style.css?v=202608202203">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -72,6 +72,7 @@
     <div class="msg tip">手動調整：<b>直接把人拖到想去的位置</b>（拖到別人身上就對調，拖到空位就移過去）。
       規則只有一條：<b>同一個人不能在同一團出現兩次</b>，所以變暗的位置代表換過去會撞到自己人。
       通常只有「同一個人的兩隻角色互換」和「跟人比較少的那團互換」是合法的。點到擋住的位置會告訴你原因。
+      <b>灰掉打叉的「已打」代表這週打過了，但位子還佔著</b>，所以那不是空位；要空出來得先用 ✕ 把人移出編組。
       也可以用點的：點一個位子選取 → 點另一個位子交換，或點虛線空位移過去
       （變暗的代表會撞到同一個人的兩隻角色，不能選）。位子右邊 ✕ 把人移出編組，
       移出的人會列在該副本下方，點一下加回去。<b>改動會套用到同人數的所有副本</b>，因為那本來就是同一團。</div>
@@ -79,7 +80,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608202155"></script>
+<script src="shared.js?v=202608202203"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -387,7 +388,8 @@ function whyBlocked(size,t,i){
   if(!from||!to) return '這個位置不能放。';
   const a=from[pick.i], b=(i==null?null:to[i]);
   if(i==null && to.length>=capOf(size))
-    return '第 '+(t+1)+' 團已經有 '+to.length+' 個人（上限 '+capOf(size)+'），塞不下了。';
+    return '第 '+(t+1)+' 團已經有 '+to.length+' 個人（上限 '+capOf(size)+'）。'
+         + '灰掉的「已打」也還是佔著位子，要先把其中一個用 ✕ 移出編組才空得出來。';
   const hitTo = to.find((x,k)=>k!==i && x.p.id===a.p.id);
   if(hitTo) return esc(a.p.name)+' 已經用「'+esc(hitTo.c.name)+'」在第 '+(t+1)+' 團了，'
                  +'換過去同一團會有兩隻 '+esc(a.p.name)+' 的角色。';
@@ -458,9 +460,11 @@ function genAll(){
     // 剩下的人維持原本的組合，不會因為有人打完就重洗。
     const base=lineupFor(d.size);
     // 每個位子記住它在基準編組裡的索引，手動交換才動得到正確的人
-    const teams=base.map(t=>t.map((s,bi)=>({s:s,bi:bi})).filter(x=>!isCleared(x.s.c.id,d.key)));
+    // 打完的人「留在位子上」只是畫成灰色。之前是直接濾掉，結果一團 4 個人有 3 個
+    // 打完就顯示成 1/4 加三個「待補外援」，看起來像有空位、拖人進去卻被擋，非常難懂。
+    const teams=base.map(t=>t.map((s,bi)=>({s:s,bi:bi,done:isCleared(s.c.id,d.key)})));
     const pending=allChars(true).filter(r=>!isCleared(r.c.id,d.key));
-    const live=teams.filter(t=>t.length);
+    const live=teams.filter(t=>t.some(x=>!x.done));
     const div=document.createElement('div');
     div.className='dcard';
     let h='<div class="dhead"><span class="nm">'+esc(d.name)+'</span>'
@@ -476,8 +480,10 @@ function genAll(){
       h+='<div class="teams">';
       teams.forEach(function(vis,i){
         if(!vis.length) return;
-        const slots=vis.map(x=>x.s);
-        const open=Math.max(0,d.size-slots.length);
+        const todo=vis.filter(x=>!x.done);            // 這團本週還要打的人
+        if(!todo.length) return;                       // 整團都打完了就不用顯示
+        const slots=todo.map(x=>x.s);                  // 戰力／缺補缺坦／建議只看還要打的
+        const open=Math.max(0,d.size-vis.length);      // 真正的空位＝基準編組還缺幾個
         // 團隊戰力＝等效輸出加總（補師和坦已照職業係數折算）
         const tp=slots.reduce((n,s)=>n+effPowerOf(s.c),0);
         const els={}; slots.forEach(s=>{const e=elemOf(s.c); if(e) els[e]=(els[e]||0)+1;});
@@ -487,7 +493,9 @@ function genAll(){
         const lack=[]; if(!nHeal) lack.push('補'); if(!nTank) lack.push('坦');
         h+='<div class="team '+(open?'short':'')+'">'
           +'<div class="thead"><b>第 '+(i+1)+' 團</b>'
-          +'<span>'+slots.length+'/'+d.size+' 人 · 等效輸出 '+tp
+          +'<span>'+vis.length+'/'+d.size+' 人'
+          +(vis.length>todo.length?'（'+(vis.length-todo.length)+' 人本週已打）':'')
+          +' · 等效輸出 '+tp
           +' <span class="tag t-heal">補 '+nHeal+'</span> <span class="tag t-tank">坦 '+nTank+'</span> '
           +elTag
           +(lack.length?' <span class="miss">缺'+lack.join('、')+'</span>':'')
@@ -497,10 +505,11 @@ function genAll(){
           const kc = k==='補師'?'t-heal' : k==='坦'?'t-tank' : 't-dps';
           const on = pick&&pick.size===d.size&&pick.t===i&&pick.i===x.bi;
           const no = pick&&pick.size===d.size&&!on&&!canPut(d.size,i,x.bi);
-          h+='<div class="slot pickable '+(on?'sel':'')+' '+(no?'no':'')+'"'
+          h+='<div class="slot pickable '+(on?'sel':'')+' '+(no?'no':'')+' '+(x.done?'cleared':'')+'"'
             +' draggable="true" data-size="'+d.size+'" data-t="'+i+'" data-i="'+x.bi+'">'
             +'<span class="who">'+esc(s.p.name)+'</span>'
             +'<span class="ch">'+esc(s.c.name)+'</span>'
+            +(x.done?'<span class="tag t-done">已打</span>':'')
             +(e?'<span class="tag e-'+e+'">'+e+'</span>':'')
             +'<span class="tag '+kc+'">'+(k==='補師'?'補':k)+'</span>'
             +'<span class="pw">'+effPowerOf(s.c)
