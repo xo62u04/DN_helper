@@ -275,6 +275,20 @@ function allChars(onlyActive){
     p.chars.forEach(c=>{ if(onlyActive&&!c.active) return; out.push({p,c}); }); });
   return out;
 }
+// 同一個人可能有兩隻同職業的角色（同名但強度不同），顯示時加編號才分得出來。
+// 只有一隻的維持原樣，不要平白多出編號。
+function charLabel(p, c){
+  if(!p || !c) return c ? c.name : '';
+  const same = p.chars.filter(x => x.name === c.name);
+  if(same.length < 2) return c.name;
+  const i = same.indexOf(c);
+  return c.name + ('①②③④⑤⑥⑦⑧⑨'.charAt(i) || ('(' + (i+1) + ')'));
+}
+// 只有 pid/cid 的時候（隊伍存的是 id）用這個
+function charLabelById(pid, cid){
+  const f = findChar(pid, cid);
+  return f.c ? charLabel(f.p, f.c) : '';
+}
 const jobOf  = c => DB.jobs.find(j=>j.name===(c.job||c.name)) || null;
 const elemOf = c => c.elem || (jobOf(c)||{}).elem || '';
 const roleOf = c => (jobOf(c)||{}).role || '';

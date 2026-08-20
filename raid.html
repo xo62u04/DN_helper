@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608202237">
+<link rel="stylesheet" href="style.css?v=202608202247">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -80,7 +80,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608202237"></script>
+<script src="shared.js?v=202608202247"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -102,7 +102,7 @@ function renderMatrix(){
   rows.forEach(function(r){
     const done=DB.dungeons.every(d=>isCleared(r.c.id,d.key));
     const el=elemOf(r.c);
-    h+='<tr class="'+(done?'alldone':'')+'"><td class="who">'+esc(r.p.name)+' · <b>'+esc(r.c.name)+'</b>'
+    h+='<tr class="'+(done?'alldone':'')+'"><td class="who">'+esc(r.p.name)+' · <b>'+esc(charLabel(r.p,r.c))+'</b>'
       + (el?' <span class="tag e-'+el+'">'+el+'</span>':'')
       + ' <span class="tag '+(r.c.carry?'t-carry':'t-leech')+'">'+(r.c.carry?'帶':'躺')+'</span>'
       + (isDps(r.c)?'':' <span class="tag '+(isHealer(r.c)?'t-heal':'t-tank')+'">'+(isHealer(r.c)?'補':'坦')+'</span>')
@@ -280,7 +280,7 @@ function gapReport(slots, size, req){
          +'（外援以每人 '+req+' 估）。</div>';
   const short=need-total;
   const weak=slots.slice().sort((a,b)=>effPowerOf(a.c)-effPowerOf(b.c)).slice(0,2)
-    .map(s=>esc(s.p.name)+'·'+esc(s.c.name)+'（'+effPowerOf(s.c)+'）');
+    .map(s=>esc(s.p.name)+'·'+esc(charLabel(s.p,s.c))+'（'+effPowerOf(s.c)+'）');
   const pe=perEnh();
   const enh=pe>0 ? Math.ceil(short/pe) : 0;
   let h='<div class="gap" style="color:var(--warn)">戰力不足：'+Math.round(total)+' / 需要 '+Math.round(need)
@@ -395,11 +395,11 @@ function whyBlocked(dk,size,t,i){
   if(i==null && to.length>=capOf(size))
     return '第 '+(t+1)+' 團已經滿 '+capOf(size)+' 個人了，要先用 ✕ 把某個人移出編組才空得出來。';
   const hitTo = to.find((x,k)=>k!==i && x.p.id===a.p.id);
-  if(hitTo) return esc(a.p.name)+' 已經用「'+esc(hitTo.c.name)+'」在第 '+(t+1)+' 團了，'
+  if(hitTo) return esc(a.p.name)+' 已經用「'+esc(charLabel(hitTo.p,hitTo.c))+'」在第 '+(t+1)+' 團了，'
                  +'換過去同一團會有兩隻 '+esc(a.p.name)+' 的角色。';
   if(b){
     const hitFrom = from.find((x,k)=>k!==pick.i && x.p.id===b.p.id);
-    if(hitFrom) return esc(b.p.name)+' 已經用「'+esc(hitFrom.c.name)+'」在第 '+(pick.t+1)+' 團了，'
+    if(hitFrom) return esc(b.p.name)+' 已經用「'+esc(charLabel(hitFrom.p,hitFrom.c))+'」在第 '+(pick.t+1)+' 團了，'
                     +'換過來同一團會有兩隻 '+esc(b.p.name)+' 的角色。';
   }
   return '這個位置不能放。';
@@ -502,7 +502,7 @@ function genAll(){
           h+='<div class="slot pickable '+(on?'sel':'')+' '+(no?'no':'')+'"'
             +' draggable="true" data-dun="'+d.key+'" data-size="'+d.size+'" data-t="'+i+'" data-i="'+idx+'">'
             +'<span class="who">'+esc(s.p.name)+'</span>'
-            +'<span class="ch">'+esc(s.c.name)+'</span>'
+            +'<span class="ch">'+esc(charLabel(s.p,s.c))+'</span>'
             +(e?'<span class="tag e-'+e+'">'+e+'</span>':'')
             +'<span class="tag '+kc+'">'+(k==='補師'?'補':k)+'</span>'
             +'<span class="pw">'+effPowerOf(s.c)
@@ -523,7 +523,7 @@ function genAll(){
       if(bench.length)
         h+='<div class="bench"><span class="hint">沒排進團的：</span>'
           + bench.map(r=>'<button class="mini" data-bench="'+d.key+'" data-bsize="'+d.size+'" data-bp="'+r.p.id+'" data-bc="'+r.c.id+'">'
-              + esc(r.p.name)+'·'+esc(r.c.name)+' ＋</button>').join('')
+              + esc(r.p.name)+'·'+esc(charLabel(r.p,r.c))+' ＋</button>').join('')
           + '</div>';
     }
     div.innerHTML=h; out.appendChild(div);

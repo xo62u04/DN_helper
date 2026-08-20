@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>深淵分隊 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608202237">
+<link rel="stylesheet" href="style.css?v=202608202247">
 <style>
   .cols{display:grid;grid-template-columns:minmax(300px,360px) 1fr;gap:18px;align-items:start}
   @media(max-width:1050px){.cols{grid-template-columns:1fr}}
@@ -97,7 +97,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608202237"></script>
+<script src="shared.js?v=202608202247"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('index.html','SEA 經典服 · PC');
 document.getElementById('notice').innerHTML = storageOK ? ''
@@ -125,7 +125,7 @@ function renderRoster(){
     h += p.chars.length ? p.chars.map(function(c){
       return '<div class="char '+(c.active?'':'off')+'">'
         +'<input type="checkbox" '+(c.active?'checked':'')+' data-a="cactive" data-p="'+p.id+'" data-c="'+c.id+'">'
-        +'<span class="cn">'+esc(c.name)+'</span>'
+        +'<span class="cn">'+esc(charLabel(p,c))+'</span>'
         +'<span class="tag '+(c.carry?'t-carry':'t-leech')+'">'+(c.carry?'帶':'躺')+'</span>'
         +(isDps(c)?'':'<span class="tag '+(isHealer(c)?'t-heal':'t-tank')+'">'+(isHealer(c)?'補':'坦')+'</span>')
         +'<span class="pw '+(isEst(c)?'est':'')+'">'+powerOf(c)+'</span></div>';
@@ -417,7 +417,7 @@ function renderTeams(){
       const on=sel&&sel.t===ti&&sel.i===i;
       const no=sel&&!on&&!canSwap(sel.t,sel.i,ti,i);
       html+='<div class="slot '+(on?'sel':'')+' '+(no?'no':'')+'" onclick="clickSlot('+ti+','+i+')">'
-        +'<span class="who">'+esc(s.person)+'</span><span class="ch">'+esc(s.char)+'</span>'
+        +'<span class="who">'+esc(s.person)+'</span><span class="ch">'+esc(charLabelById(s.pid,s.cid)||s.char)+'</span>'
         +'<span class="pw '+(slotEst(s)?'est':'')+'">'+slotPower(s)+'</span>'
         +'<span class="tag '+(s.carry?'t-carry':'t-leech')+'">'+(s.carry?'帶':'躺')+'</span>'
         +(slotKind(s)==='輸出'?''
@@ -435,7 +435,7 @@ function renderTeams(){
       DB.people.filter(p=>p.active&&!t.slots.some(s=>s.pid===p.id)).forEach(function(p){
         p.chars.filter(c=>c.active).forEach(function(c){
           any=true;
-          html+='<button onclick="addSlot('+ti+',\''+p.id+'\',\''+c.id+'\')">'+esc(p.name)+' · '+esc(c.name)
+          html+='<button onclick="addSlot('+ti+',\''+p.id+'\',\''+c.id+'\')">'+esc(p.name)+' · '+esc(charLabel(p,c))
             +' <span style="color:'+(c.carry?'var(--carry)':'var(--dim)')+'">'+(c.carry?'帶':'躺')+'</span>'
             +' <span style="color:var(--pow)">'+powerOf(c)+'</span></button>';
         });
@@ -451,7 +451,7 @@ function renderTeams(){
   DB.people.filter(p=>p.active).forEach(function(p){
     const mine=[]; let pot=0, pw=0;
     teams.forEach((t,i)=>t.slots.forEach(function(s){
-      if(s.pid===p.id){ mine.push((i+1)+'隊 '+s.char+(s.potion?'(水)':'')); if(s.potion)pot++; pw+=slotPower(s); }
+      if(s.pid===p.id){ mine.push((i+1)+'隊 '+(charLabelById(s.pid,s.cid)||s.char)+(s.potion?'(水)':'')); if(s.potion)pot++; pw+=slotPower(s); }
     }));
     html+='<tr><td>'+esc(p.name)+'</td><td>'+mine.length+'</td>'
       +'<td class="'+(pot>p.potion?'over':'')+'">'+pot+' / '+p.potion+'</td>'
