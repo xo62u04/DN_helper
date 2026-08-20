@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608192318">
+<link rel="stylesheet" href="style.css?v=202608202155">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -33,10 +33,15 @@
   .rec{margin-top:8px;padding:8px 10px;border:1px dashed var(--line);border-radius:6px;font-size:14px;color:var(--dim)}
   .rec b{color:var(--txt)}
   .gap{margin-top:8px;font-size:14px}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:99;
+         background:#3a1f22;border:1px solid var(--warn);color:#ffc9c9;display:none;
+         padding:11px 18px;border-radius:8px;font-size:15px;max-width:92vw;
+         box-shadow:0 8px 28px #000a;line-height:1.5}
 </style>
 </head>
 <body>
 <div id="nav"></div>
+<div id="toast"></div>
 
 <div class="wrap">
   <div id="notice"></div>
@@ -65,15 +70,16 @@
         「建議戰力」是每人平均，填了才會算裝備缺口；不知道就先留 0。</span>
     </div>
     <div class="msg tip">手動調整：<b>直接把人拖到想去的位置</b>（拖到別人身上就對調，拖到空位就移過去）。
+      規則只有一條：<b>同一個人不能在同一團出現兩次</b>，所以變暗的位置代表換過去會撞到自己人。
+      通常只有「同一個人的兩隻角色互換」和「跟人比較少的那團互換」是合法的。點到擋住的位置會告訴你原因。
       也可以用點的：點一個位子選取 → 點另一個位子交換，或點虛線空位移過去
       （變暗的代表會撞到同一個人的兩隻角色，不能選）。位子右邊 ✕ 把人移出編組，
       移出的人會列在該副本下方，點一下加回去。<b>改動會套用到同人數的所有副本</b>，因為那本來就是同一團。</div>
-    </div>
     <div id="out"></div>
   </div>
 </div>
 
-<script src="shared.js?v=202608192318"></script>
+<script src="shared.js?v=202608202155"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -373,11 +379,39 @@ function canPut(size,t,i){
   if(b&&clashes(from,b,pick.i)) return false;
   return true;
 }
+// 點到不能放的位置時，講清楚是誰撞到誰
+function whyBlocked(size,t,i){
+  if(!pick) return '';
+  if(pick.size!==size) return '4 人本和 8 人本是兩組獨立的編組，不能互相換。';
+  const L=lineupCache[size], from=L[pick.t], to=L[t];
+  if(!from||!to) return '這個位置不能放。';
+  const a=from[pick.i], b=(i==null?null:to[i]);
+  if(i==null && to.length>=capOf(size))
+    return '第 '+(t+1)+' 團已經有 '+to.length+' 個人（上限 '+capOf(size)+'），塞不下了。';
+  const hitTo = to.find((x,k)=>k!==i && x.p.id===a.p.id);
+  if(hitTo) return esc(a.p.name)+' 已經用「'+esc(hitTo.c.name)+'」在第 '+(t+1)+' 團了，'
+                 +'換過去同一團會有兩隻 '+esc(a.p.name)+' 的角色。';
+  if(b){
+    const hitFrom = from.find((x,k)=>k!==pick.i && x.p.id===b.p.id);
+    if(hitFrom) return esc(b.p.name)+' 已經用「'+esc(hitFrom.c.name)+'」在第 '+(pick.t+1)+' 團了，'
+                    +'換過來同一團會有兩隻 '+esc(b.p.name)+' 的角色。';
+  }
+  return '這個位置不能放。';
+}
+let toastTimer=null;
+function toast(msg){
+  if(!msg) return;
+  const el=document.getElementById('toast');
+  el.innerHTML=msg; el.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){ el.style.display='none'; }, 4200);
+}
+
 function clickSlot(size,t,i){
   const L=lineupCache[size];
   if(!pick){ pick={size,t,i}; return genAll(); }
   if(pick.size===size&&pick.t===t&&pick.i===i){ pick=null; return genAll(); }
-  if(!canPut(size,t,i)){ return; }
+  if(!canPut(size,t,i)){ toast(whyBlocked(size,t,i)); return; }
   const a=L[pick.t][pick.i], b=L[t][i];
   L[pick.t][pick.i]=b; L[t][i]=a;
   pick=null; persistLineup(size); genAll();
@@ -385,7 +419,7 @@ function clickSlot(size,t,i){
 function clickEmpty(size,t){
   if(!pick||pick.size!==size) return;
   const L=lineupCache[size];
-  if(!canPut(size,t,null)) return;
+  if(!canPut(size,t,null)){ toast(whyBlocked(size,t,null)); return; }
   const a=L[pick.t].splice(pick.i,1)[0];
   L[t].push(a);
   pick=null;
