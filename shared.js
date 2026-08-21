@@ -66,7 +66,7 @@ const defRole = n => HEALER_JOBS.indexOf(n)>=0 ? '補師'
                     : TANK_JOBS.indexOf(n)>=0   ? '坦' : '輸出';
 
 /* 一次性資料修正。每加一條就把 MIGV 加一，舊存檔載入時會補跑。 */
-const MIGV = 1;
+const MIGV = 2;
 function migrate(s){
   const from = +s.migv || 0;
   // v1：副本清單放錯 —— R 版分層只有沙龍有，K教授 和 地獄K 各一本
@@ -82,6 +82,33 @@ function migrate(s){
     const r = byKey('desertr');
     if(r>=0 && byKey('desert1r')<0){ s.dungeons[r].key='desert1r'; s.dungeons[r].name='沙龍 1R'; }
     else if(r>=0) s.dungeons.splice(r,1);
+  }
+  // v2：K教授 就是 地獄K，合併成一本（保留 hellk）
+  if(from < 2){
+    const byKey = k => s.dungeons.findIndex(d=>d.key===k);
+    const pi = byKey('profk');
+    if(pi >= 0){
+      if(byKey('hellk') < 0){
+        // 只有 K教授 沒有 地獄K，直接改名沿用
+        s.dungeons[pi].key='hellk'; s.dungeons[pi].name='地獄K';
+      }else{
+        // 兩本都在：把 K教授 的打勾紀錄搬到 地獄K，再把 K教授 拿掉
+        Object.keys(s.clears||{}).forEach(function(w){
+          const cw=s.clears[w];
+          Object.keys(cw).forEach(function(k){
+            if(k.slice(-6)!=='|profk') return;
+            const dst=k.slice(0,-6)+'|hellk';
+            const src=cw[k];
+            const srcT=(typeof src==='boolean')?0:(src.t||0);
+            const cur=cw[dst];
+            const curT=(cur===undefined)?-1:((typeof cur==='boolean')?0:(cur.t||0));
+            if(srcT>curT) cw[dst]=src;
+            delete cw[k];
+          });
+        });
+        s.dungeons.splice(pi,1);
+      }
+    }
   }
   s.migv = MIGV;
   return s;
@@ -114,7 +141,6 @@ function defaultDB(){
       {key:'kim_n',   name:'颱風金 普通', size:4, req:0},
       {key:'kim_h',   name:'颱風金 地獄', size:4, req:0},
       {key:'hellk',   name:'地獄K',       size:4, req:0},
-      {key:'profk',   name:'K教授',       size:4, req:0},
       {key:'desert1', name:'沙龍 1',      size:4, req:0},
       {key:'desert2', name:'沙龍 2',      size:4, req:0},
       {key:'desert3', name:'沙龍 3',      size:4, req:0},
