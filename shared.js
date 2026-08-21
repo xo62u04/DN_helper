@@ -65,6 +65,28 @@ const esc = s => String(s??'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>
 const defRole = n => HEALER_JOBS.indexOf(n)>=0 ? '補師'
                     : TANK_JOBS.indexOf(n)>=0   ? '坦' : '輸出';
 
+/* 一次性資料修正。每加一條就把 MIGV 加一，舊存檔載入時會補跑。 */
+const MIGV = 1;
+function migrate(s){
+  const from = +s.migv || 0;
+  // v1：副本清單放錯 —— R 版分層只有沙龍有，K教授 和 地獄K 各一本
+  if(from < 1){
+    const byKey = k => s.dungeons.findIndex(d=>d.key===k);
+    // K教授 1R 收斂成單一本，2R~4R 拿掉
+    const i = byKey('profk1r');
+    if(i>=0 && byKey('profk')<0){ s.dungeons[i].key='profk'; s.dungeons[i].name='K教授'; }
+    ['profk2r','profk3r','profk4r'].forEach(function(k){
+      const j=byKey(k); if(j>=0) s.dungeons.splice(j,1);
+    });
+    // 沙龍 R 其實是 1R~4R 四本
+    const r = byKey('desertr');
+    if(r>=0 && byKey('desert1r')<0){ s.dungeons[r].key='desert1r'; s.dungeons[r].name='沙龍 1R'; }
+    else if(r>=0) s.dungeons.splice(r,1);
+  }
+  s.migv = MIGV;
+  return s;
+}
+
 /* ---------------- 預設資料 ---------------- */
 function defaultDB(){
   // C(角色名, 帶?, 主武+, 副武+, 防具+, 主武裝等, 副武裝等, 防具裝等)
@@ -92,20 +114,21 @@ function defaultDB(){
       {key:'kim_n',   name:'颱風金 普通', size:4, req:0},
       {key:'kim_h',   name:'颱風金 地獄', size:4, req:0},
       {key:'hellk',   name:'地獄K',       size:4, req:0},
-      {key:'profk1r', name:'K教授 1R',    size:4, req:0},
-      {key:'profk2r', name:'K教授 2R',    size:4, req:0},
-      {key:'profk3r', name:'K教授 3R',    size:4, req:0},
-      {key:'profk4r', name:'K教授 4R',    size:4, req:0},
+      {key:'profk',   name:'K教授',       size:4, req:0},
       {key:'desert1', name:'沙龍 1',      size:4, req:0},
       {key:'desert2', name:'沙龍 2',      size:4, req:0},
       {key:'desert3', name:'沙龍 3',      size:4, req:0},
       {key:'desert4', name:'沙龍 4',      size:4, req:0},
-      {key:'desertr', name:'沙龍 R',      size:4, req:0},
+      {key:'desert1r',name:'沙龍 1R',     size:4, req:0},
+      {key:'desert2r',name:'沙龍 2R',     size:4, req:0},
+      {key:'desert3r',name:'沙龍 3R',     size:4, req:0},
+      {key:'desert4r',name:'沙龍 4R',     size:4, req:0},
       {key:'sea',     name:'海龍',        size:8, req:0},
       {key:'green',   name:'綠龍',        size:8, req:0},
       {key:'desert',  name:'沙龍',        size:8, req:0},
     ],
     removed:[],          // 手動刪掉的副本 key，預設清單不要再把它補回來
+    migv:MIGV,           // 已套用到第幾版的資料修正
     clears:{},   // { 週期起始日: { "charId|dungeonKey": true } }
     gear:{ tiers:[{k:'50S',v:100},{k:'50L',v:130},{k:'60B',v:170},{k:'60A',v:210},{k:'70A',v:260}],
            wPer:12, aPer:5 },
@@ -147,10 +170,15 @@ function mergeDefaults(s){
   d.jobs.forEach(dj=>{ if(!s.jobs.some(j=>j.name===dj.name)) s.jobs.push(dj); });
   s.removed  = Array.isArray(s.removed) ? s.removed : [];
   s.dungeons = Array.isArray(s.dungeons)&&s.dungeons.length ? s.dungeons : d.dungeons;
+  migrate(s);
   // 之後版本新增的副本要補進舊存檔，但使用者自己刪掉的就別再冒出來
   d.dungeons.forEach(function(dd){
     if(!s.dungeons.some(x=>x.key===dd.key) && s.removed.indexOf(dd.key)<0) s.dungeons.push(dd);
   });
+  // 補進來的排在最後會讓 4 人本跑到 8 人本後面，依預設順序排好；
+  // 自己新增的副本沒在預設清單裡，就留在最後面
+  const ord={}; d.dungeons.forEach((x,i)=>{ ord[x.key]=i; });
+  s.dungeons.sort((a,b)=>(ord[a.key]==null?999:ord[a.key])-(ord[b.key]==null?999:ord[b.key]));
   s.clears   = s.clears && typeof s.clears==='object' ? s.clears : {};
   s.gear     = s.gear&&Array.isArray(s.gear.tiers)&&s.gear.tiers.length ? s.gear : d.gear;
   s.cfg      = Object.assign(d.cfg, s.cfg||{});
@@ -345,7 +373,8 @@ const packPerson = p => ({name:p.name, active:p.active, free:p.free, potion:p.po
 
 function exportJSON(){
   return JSON.stringify({people:DB.people.map(packPerson), jobs:DB.jobs,
-    dungeons:DB.dungeons, removed:DB.removed||[], clears:DB.clears, gear:DB.gear, cfg:DB.cfg,
+    dungeons:DB.dungeons, removed:DB.removed||[], migv:DB.migv||MIGV,
+    clears:DB.clears, gear:DB.gear, cfg:DB.cfg,
     meta:DB.meta||{t:0}}, null, 2);
 }
 function importJSON(txt){
