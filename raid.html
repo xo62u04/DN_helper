@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608202247">
+<link rel="stylesheet" href="style.css?v=202608212028">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -60,6 +60,23 @@
   </div>
 
   <div class="panel">
+    <details>
+      <summary>副本清單（可以自己增刪、改人數）</summary>
+      <div id="dunEditor" style="margin-top:10px"></div>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="newDunName" placeholder="副本名稱 例：冰龍 1" style="width:200px">
+        <input type="number" id="newDunSize" value="4" min="1" max="24" style="width:70px">
+        <span class="hint">人</span>
+        <button onclick="addDungeon()">＋副本</button>
+      </div>
+      <p class="hint" style="margin:8px 0 0">
+        改人數或刪除會重排那個副本的編組。刪掉的副本不會被預設清單補回來，
+        本週的通關紀錄也留著，之後加回同名副本要重新打勾。
+      </p>
+    </details>
+  </div>
+
+  <div class="panel">
     <h2>分團表</h2>
     <div class="row" style="margin-bottom:12px">
       <button class="primary" onclick="genAll()">重新整理</button>
@@ -80,7 +97,7 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608202247"></script>
+<script src="shared.js?v=202608212028"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -585,8 +602,55 @@ document.getElementById('out').addEventListener('change', function(e){
   d.req=Math.max(0,+e.target.value||0); saveDB(); genAll();
 });
 
-renderMatrix(); genAll();
-mountSync(function(){ renderMatrix(); genAll(); });
+/* ================= 副本清單編輯 ================= */
+function renderDunEditor(){
+  const box=document.getElementById('dunEditor'); if(!box) return;
+  box.innerHTML=DB.dungeons.map(function(d,i){
+    return '<div class="row" style="margin-bottom:6px">'
+      +'<input type="text" value="'+esc(d.name)+'" data-di="'+i+'" data-df="name" style="width:200px">'
+      +'<input type="number" value="'+d.size+'" min="1" max="24" data-di="'+i+'" data-df="size" style="width:70px">'
+      +'<span class="hint">人</span>'
+      +'<span class="hint">建議戰力/人</span>'
+      +'<input type="number" value="'+(d.req||0)+'" data-di="'+i+'" data-df="req" style="width:90px">'
+      +'<button class="mini" data-di="'+i+'" data-df="del">✕</button></div>';
+  }).join('');
+}
+document.getElementById('dunEditor').addEventListener('change', onDun);
+document.getElementById('dunEditor').addEventListener('click', function(e){
+  if(e.target.dataset.df==='del') onDun(e);
+});
+function onDun(e){
+  const i=+e.target.dataset.di, f=e.target.dataset.df;
+  if(isNaN(i)||!f) return;
+  const d=DB.dungeons[i]; if(!d) return;
+  if(f==='del'){
+    if(!confirm('刪掉「'+d.name+'」？')) return;
+    DB.removed=DB.removed||[];
+    if(DB.removed.indexOf(d.key)<0) DB.removed.push(d.key);
+    DB.dungeons.splice(i,1);
+    delete lineupCache[d.key];
+  }else if(f==='name'){ d.name=e.target.value.trim()||d.name; }
+  else if(f==='size'){
+    d.size=Math.max(1,+e.target.value||4);
+    delete lineupCache[d.key];              // 人數變了就重排這一本
+    const st=loadLineups(); delete st[d.key]; saveLineups(st);
+  }
+  else if(f==='req'){ d.req=Math.max(0,+e.target.value||0); }
+  touchMeta(); saveDB(); renderDunEditor(); renderMatrix(); genAll();
+}
+function addDungeon(){
+  const nm=document.getElementById('newDunName').value.trim();
+  if(!nm) return document.getElementById('newDunName').focus();
+  const size=Math.max(1,+document.getElementById('newDunSize').value||4);
+  let key='d'+Date.now().toString(36);
+  while(DB.dungeons.some(x=>x.key===key)) key+='x';
+  DB.dungeons.push({key:key, name:nm, size:size, req:0});
+  document.getElementById('newDunName').value='';
+  touchMeta(); saveDB(); renderDunEditor(); renderMatrix(); genAll();
+}
+
+renderDunEditor(); renderMatrix(); genAll();
+mountSync(function(){ renderDunEditor(); renderMatrix(); genAll(); });
 </script>
 </body>
 </html>

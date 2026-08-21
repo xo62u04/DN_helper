@@ -91,10 +91,21 @@ function defaultDB(){
       {key:'giant_h', name:'巨人 地獄',   size:4, req:0},
       {key:'kim_n',   name:'颱風金 普通', size:4, req:0},
       {key:'kim_h',   name:'颱風金 地獄', size:4, req:0},
+      {key:'hellk',   name:'地獄K',       size:4, req:0},
+      {key:'profk1r', name:'K教授 1R',    size:4, req:0},
+      {key:'profk2r', name:'K教授 2R',    size:4, req:0},
+      {key:'profk3r', name:'K教授 3R',    size:4, req:0},
+      {key:'profk4r', name:'K教授 4R',    size:4, req:0},
+      {key:'desert1', name:'沙龍 1',      size:4, req:0},
+      {key:'desert2', name:'沙龍 2',      size:4, req:0},
+      {key:'desert3', name:'沙龍 3',      size:4, req:0},
+      {key:'desert4', name:'沙龍 4',      size:4, req:0},
+      {key:'desertr', name:'沙龍 R',      size:4, req:0},
       {key:'sea',     name:'海龍',        size:8, req:0},
       {key:'green',   name:'綠龍',        size:8, req:0},
       {key:'desert',  name:'沙龍',        size:8, req:0},
     ],
+    removed:[],          // 手動刪掉的副本 key，預設清單不要再把它補回來
     clears:{},   // { 週期起始日: { "charId|dungeonKey": true } }
     gear:{ tiers:[{k:'50S',v:100},{k:'50L',v:130},{k:'60B',v:170},{k:'60A',v:210},{k:'70A',v:260}],
            wPer:12, aPer:5 },
@@ -134,7 +145,12 @@ function mergeDefaults(s){
                        ? (DPS_COEF[j.name]??1) : (+j.dps||0), note:j.note||''})) : d.jobs;
   // 預設職業庫新增過的職業（例如聖騎）要補進舊存檔，不然選單裡選不到
   d.jobs.forEach(dj=>{ if(!s.jobs.some(j=>j.name===dj.name)) s.jobs.push(dj); });
+  s.removed  = Array.isArray(s.removed) ? s.removed : [];
   s.dungeons = Array.isArray(s.dungeons)&&s.dungeons.length ? s.dungeons : d.dungeons;
+  // 之後版本新增的副本要補進舊存檔，但使用者自己刪掉的就別再冒出來
+  d.dungeons.forEach(function(dd){
+    if(!s.dungeons.some(x=>x.key===dd.key) && s.removed.indexOf(dd.key)<0) s.dungeons.push(dd);
+  });
   s.clears   = s.clears && typeof s.clears==='object' ? s.clears : {};
   s.gear     = s.gear&&Array.isArray(s.gear.tiers)&&s.gear.tiers.length ? s.gear : d.gear;
   s.cfg      = Object.assign(d.cfg, s.cfg||{});
@@ -329,7 +345,7 @@ const packPerson = p => ({name:p.name, active:p.active, free:p.free, potion:p.po
 
 function exportJSON(){
   return JSON.stringify({people:DB.people.map(packPerson), jobs:DB.jobs,
-    dungeons:DB.dungeons, clears:DB.clears, gear:DB.gear, cfg:DB.cfg,
+    dungeons:DB.dungeons, removed:DB.removed||[], clears:DB.clears, gear:DB.gear, cfg:DB.cfg,
     meta:DB.meta||{t:0}}, null, 2);
 }
 function importJSON(txt){
