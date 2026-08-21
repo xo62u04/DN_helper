@@ -66,7 +66,24 @@ const defRole = n => HEALER_JOBS.indexOf(n)>=0 ? '補師'
                     : TANK_JOBS.indexOf(n)>=0   ? '坦' : '輸出';
 
 /* 一次性資料修正。每加一條就把 MIGV 加一，舊存檔載入時會補跑。 */
-const MIGV = 2;
+const MIGV = 3;
+// 把 from 這本的打勾紀錄搬到 to 這本（逐格比時間，跟平常的合併規則一致）
+function moveClears(s, from, to){
+  const suf='|'+from;
+  Object.keys(s.clears||{}).forEach(function(w){
+    const cw=s.clears[w];
+    Object.keys(cw).forEach(function(k){
+      if(k.slice(-suf.length)!==suf) return;
+      const dst=k.slice(0,-suf.length)+'|'+to;
+      const src=cw[k];
+      const srcT=(typeof src==='boolean')?0:(src.t||0);
+      const cur=cw[dst];
+      const curT=(cur===undefined)?-1:((typeof cur==='boolean')?0:(cur.t||0));
+      if(srcT>curT) cw[dst]=src;
+      delete cw[k];
+    });
+  });
+}
 function migrate(s){
   const from = +s.migv || 0;
   // v1：副本清單放錯 —— R 版分層只有沙龍有，K教授 和 地獄K 各一本
@@ -93,22 +110,24 @@ function migrate(s){
         s.dungeons[pi].key='hellk'; s.dungeons[pi].name='地獄K';
       }else{
         // 兩本都在：把 K教授 的打勾紀錄搬到 地獄K，再把 K教授 拿掉
-        Object.keys(s.clears||{}).forEach(function(w){
-          const cw=s.clears[w];
-          Object.keys(cw).forEach(function(k){
-            if(k.slice(-6)!=='|profk') return;
-            const dst=k.slice(0,-6)+'|hellk';
-            const src=cw[k];
-            const srcT=(typeof src==='boolean')?0:(src.t||0);
-            const cur=cw[dst];
-            const curT=(cur===undefined)?-1:((typeof cur==='boolean')?0:(cur.t||0));
-            if(srcT>curT) cw[dst]=src;
-            delete cw[k];
-          });
-        });
+        moveClears(s, 'profk', 'hellk');
         s.dungeons.splice(pi,1);
       }
     }
+  }
+  // v3：沙龍 1~4 就是 1R~4R，我建成兩套了。合併回 1R~4R 四本。
+  if(from < 3){
+    [1,2,3,4].forEach(function(i){
+      const oldK='desert'+i, newK='desert'+i+'r';
+      const oi=s.dungeons.findIndex(d=>d.key===oldK);
+      if(oi<0) return;
+      if(s.dungeons.findIndex(d=>d.key===newK)<0){
+        s.dungeons[oi].key=newK; s.dungeons[oi].name='沙龍 '+i+'R';
+      }else{
+        moveClears(s, oldK, newK);
+        s.dungeons.splice(oi,1);
+      }
+    });
   }
   s.migv = MIGV;
   return s;
@@ -141,10 +160,6 @@ function defaultDB(){
       {key:'kim_n',   name:'颱風金 普通', size:4, req:0},
       {key:'kim_h',   name:'颱風金 地獄', size:4, req:0},
       {key:'hellk',   name:'地獄K',       size:4, req:0},
-      {key:'desert1', name:'沙龍 1',      size:4, req:0},
-      {key:'desert2', name:'沙龍 2',      size:4, req:0},
-      {key:'desert3', name:'沙龍 3',      size:4, req:0},
-      {key:'desert4', name:'沙龍 4',      size:4, req:0},
       {key:'desert1r',name:'沙龍 1R',     size:4, req:0},
       {key:'desert2r',name:'沙龍 2R',     size:4, req:0},
       {key:'desert3r',name:'沙龍 3R',     size:4, req:0},
