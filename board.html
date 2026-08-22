@@ -129,6 +129,9 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 .note.alert{border-left-color:var(--alert)}
 .tag{font-family:var(--num);font-size:10px;letter-spacing:.06em;padding:1px 5px;
      border:1px solid var(--rule);color:var(--muted)}
+.tag.own{color:var(--bone);border-color:var(--bone);letter-spacing:0;font-family:var(--ui);vertical-align:2px}
+.ownbar{margin:10px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ownbar .hint{font-size:12.5px;color:var(--muted)}
 .scrim{position:fixed;inset:0;background:#0009;z-index:35;opacity:0;pointer-events:none;transition:opacity .2s}
 .scrim.on{opacity:1;pointer-events:auto}
 .foot{padding:16px 22px;color:var(--muted);font-size:13px;line-height:1.8}
@@ -174,8 +177,8 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer"><button class="x" onclick="closeDrawer()">關閉</button><div id="dbody"></div></aside>
 
-<script src="shared.js?v=202608221952"></script>
-<script src="lineup.js?v=202608221952"></script>
+<script src="shared.js?v=202608222202"></script>
+<script src="lineup.js?v=202608222202"></script>
 <script>
 /* ---------------- 狀態 ---------------- */
 let filter = 'open';        // open = 只看這週還沒打完的副本
@@ -297,6 +300,7 @@ function draw(){
       });
       out += '<tr class="'+(ti===0?'first ':'')+(allDone?'clear ':'')+sel+'" data-row="'+d.key+'">'
         + (ti===0 ? '<td class="dun" rowspan="'+lines+'" data-open="'+d.key+'"><b>'+esc(d.name)+'</b>'
+                    + (isOwnLineup(d.key)?' <span class="tag own">獨立</span>':'')
                     + '<em>'+d.size+' 人 · '+L.length+' 團</em></td>' : '')
         + '<td class="tno"><b>'+(ti+1)+'</b></td>'
         + tds
@@ -312,6 +316,7 @@ function draw(){
       });
       out += '<tr class="'+(allDone?'clear ':'')+sel+'" data-row="'+d.key+'">'
         + (L.length===0 ? '<td class="dun" rowspan="1" data-open="'+d.key+'"><b>'+esc(d.name)+'</b>'
+                          + (isOwnLineup(d.key)?' <span class="tag own">獨立</span>':'')
                           + '<em>'+d.size+' 人</em></td>' : '')
         + '<td class="tno rest">未排</td>' + tds + '<td class="need">—</td></tr>';
     }
@@ -332,8 +337,8 @@ function draw(){
     '本週還要打 <b style="color:var(--ink)">'+todo+'</b> 場，已完成 '+done+' 場。'
     + '<b style="color:var(--ink)">一列就是一團，而且 4 人本全部共用同一套團、8 人本也是</b>——'
     + '不同副本不會換隊友。灰掉刪除線＝這本打完了，那格這本要找外援補。'
-    + '拖角色到另一列＝兩人互換團（<b style="color:var(--ink)">所有同人數的副本一起變</b>）；'
-    + '點副本名開細節。'
+    + '拖角色到另一列＝兩人互換團（<b style="color:var(--ink)">所有同人數的副本一起變</b>）。'
+    + '某本要特別配置的話，點副本名 → 「這本單獨調整」，那本就脫鉤成自己一份（標「獨立」），拖動只影響它。'
     + '副本、角色、裝備在<a href="roster.html">角色</a>頁編輯。';
   if(openDun) drawDrawer(openDun);
   if(typeof fixTop==='function') fixTop();
@@ -397,10 +402,17 @@ function closeDrawer(){
 function drawDrawer(dk){
   const d=DB.dungeons.find(x=>x.key===dk); if(!d) return;
   const L=lineupFor(d.key,d.size);
-  let h='<h2>'+esc(d.name)+'</h2><div class="sub">'+d.size+' 人本 · '+L.length+' 團 · 建議戰力/人 '
+  const own=isOwnLineup(d.key);
+  let h='<h2>'+esc(d.name)+(own?' <span class="tag own">獨立</span>':'')+'</h2>'
+      + '<div class="sub">'+d.size+' 人本 · '+L.length+' 團 · 建議戰力/人 '
       + '<input type="number" value="'+(d.req||0)+'" data-req="'+d.key+'" '
       + 'style="width:80px;background:var(--raised);border:1px solid var(--rule);color:var(--ink);'
-      + 'font-family:var(--num);padding:2px 6px"></div>';
+      + 'font-family:var(--num);padding:2px 6px"></div>'
+      + '<div class="ownbar">'
+      + (own
+          ? '<button data-own="attach">回到共用編組</button><span class="hint">這本現在是自己一份，拖動只影響這本。</span>'
+          : '<button data-own="detach">這本單獨調整</button><span class="hint">目前跟其他 '+d.size+' 人本共用同一套團；按了會複製一份出來，只改這本。</span>')
+      + '</div>';
 
   L.forEach(function(slots,i){
     const active=slots.filter(s=>!isCleared(s.c.id,d.key));   // 這本會到的人
@@ -480,6 +492,14 @@ drawerEl.addEventListener('drop', function(e){
   if(err) toast(err); else draw();
 });
 
+drawerEl.addEventListener('click', function(e){
+  const b=e.target.closest('button[data-own]'); if(!b||!openDun) return;
+  const d=DB.dungeons.find(x=>x.key===openDun); if(!d) return;
+  if(b.dataset.own==='detach') detachLineup(d.key, d.size);
+  else if(confirm('丟掉這本自己的編組，回到跟其他 '+d.size+' 人本共用？')) attachLineup(d.key);
+  else return;
+  draw();
+});
 drawerEl.addEventListener('change', function(e){
   const k=e.target.dataset.req; if(!k) return;
   const d=DB.dungeons.find(x=>x.key===k); if(!d) return;
@@ -487,7 +507,7 @@ drawerEl.addEventListener('change', function(e){
 });
 document.addEventListener('keydown', function(e){ if(e.key==='Escape'&&openDun) closeDrawer(); });
 
-function regen(){ if(confirm('重新分團？手動調整過的編組會被重排，而且同人數的副本會一起變。')){ regenLineups(); draw(); } }
+function regen(){ if(confirm('重新分團？手動調整過的編組會被重排，同人數的副本會一起變，單獨調整過的副本也會回到共用。')){ regenLineups(); draw(); } }
 
 /* ---------------- 同步狀態 ---------------- */
 Sync.onChange(function(st){

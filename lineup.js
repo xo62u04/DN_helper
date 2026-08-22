@@ -70,10 +70,21 @@ const lineupCache={};        // key = 'sz'+人數：同人數的副本共用同�
 // 團的組合跨副本一致（4 人本一套、8 人本一套），
 // 不然同一批人每本副本換一次隊友，實際上沒辦法打。
 const lkey = size => 'sz'+size;
+// 有些副本會想單獨調整（例如某本要特別配置）——脫鉤後那本有自己的一份，
+// key 就用副本 key；其他本仍走共用的 'szN'
+const ownLineups = {};                         // dk → true
+(function(){ try{ Object.keys(JSON.parse(LS.get(LINEUP_KEY))||{})
+  .forEach(k=>{ if(!/^sz\d+$/.test(k)) ownLineups[k]=true; }); }catch(e){} })();
+const isOwnLineup = dk => !!ownLineups[dk];
 function lineupKeyOf(dk){
+  if(ownLineups[dk]) return dk;
   const d=DB.dungeons.find(x=>x.key===dk);
   return d ? lkey(d.size) : dk;
 }
+const sizeOfKey = key => {
+  if(/^sz\d+$/.test(key)) return +key.slice(2);
+  const d=DB.dungeons.find(x=>x.key===key); return d ? d.size : 0;
+};
 // 拿編組陣列：副本 key 或 'szN' 都通
 function lineupOf(dk){ return lineupCache[lineupKeyOf(dk)] || []; }
 
@@ -105,13 +116,14 @@ function hydrate(saved){
 }
 function persistLineup(dkOrKey){
   const key = /^sz\d+$/.test(String(dkOrKey)) ? dkOrKey : lineupKeyOf(dkOrKey);
-  const size = +String(key).slice(2)||0;
+  const size = sizeOfKey(key);
   const store=loadLineups();
   store[key]={sig:rosterSig(size),
               teams:(lineupCache[key]||[]).map(t=>t.map(s=>({pid:s.p.id, cid:s.c.id})))};
   saveLineups(store);
 }
-function lineupFor(dk, size, force){
+// 共用編組（'szN'）
+function sharedLineup(size, force){
   const key=lkey(size);
   if(force || !lineupCache[key]){
     const sig=rosterSig(size);
@@ -130,6 +142,29 @@ function lineupFor(dk, size, force){
   }
   return lineupCache[key];
 }
+function lineupFor(dk, size, force){
+  if(!ownLineups[dk]) return sharedLineup(size, force);
+  // 這本脫鉤了：用自己那份；名單變了（指紋不符）就自動回到共用
+  if(!lineupCache[dk]){
+    const store=loadLineups();
+    const t = (store[dk] && store[dk].sig===rosterSig(size)) ? hydrate(store[dk].teams) : [];
+    if(!t.length){ attachLineup(dk); return sharedLineup(size, force); }
+    lineupCache[dk]=t;
+  }
+  return lineupCache[dk];
+}
+// 脫鉤：把目前共用的編組複製一份給這本自己用
+function detachLineup(dk, size){
+  const base=sharedLineup(size);
+  lineupCache[dk]=base.map(t=>t.map(s=>({p:s.p, c:s.c})));
+  ownLineups[dk]=true;
+  persistLineup(dk);
+}
+// 回到共用：丟掉自己那份
+function attachLineup(dk){
+  delete ownLineups[dk]; delete lineupCache[dk];
+  const store=loadLineups(); delete store[dk]; saveLineups(store);
+}
 // 同步拉下來會換掉整份 DB，編組快取裡的舊物件要跟著丟掉重建，
 // 不然 charLabel 對不到人會顯示成「毀滅(0)」這種鬼東西
 function dropLineupCache(){
@@ -137,6 +172,7 @@ function dropLineupCache(){
 }
 function regenLineups(){
   dropLineupCache();
+  Object.keys(ownLineups).forEach(k=>delete ownLineups[k]);
   saveLineups({});
 }
 
