@@ -89,6 +89,8 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 .chip.drag{opacity:.4}
 .chip.hit{border-color:var(--bone);background:var(--raised)}
 .chip.no{opacity:.25}
+td.drop.hit{background:var(--raised);box-shadow:inset 0 0 0 1px var(--bone)}
+td.drop.no{opacity:.35}
 .chip .t{font-family:var(--num);font-size:10px;color:var(--muted)}
 .chip .n{font-size:14px;font-weight:600}
 .chip.e-火 .n{color:var(--fire)} .chip.e-水 .n{color:var(--water)}
@@ -177,8 +179,8 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer"><button class="x" onclick="closeDrawer()">關閉</button><div id="dbody"></div></aside>
 
-<script src="shared.js?v=202608222218"></script>
-<script src="lineup.js?v=202608222218"></script>
+<script src="shared.js?v=202608230033"></script>
+<script src="lineup.js?v=202608230033"></script>
 <script>
 /* ---------------- 狀態 ---------------- */
 let filter = 'open';        // open = 只看這週還沒打完的副本
@@ -234,6 +236,13 @@ function swapTeams(dk, cidA, cidB){
   if(hitA) return esc(b.s.p.name)+' 已經在第 '+(a.t+1)+' 團了，換過來會有兩隻。';
   L[a.t][a.i]=b.s; L[b.t][b.i]=a.s;
   persistLineup(dk); return '';
+}
+// 板上用：把某隻角色整個搬到另一團（那個人在那團沒角色的格子）
+function moveChipToTeam(dk, size, cid, t2){
+  const L=lineupOf(dk); let t1=-1,i1=-1;
+  L.forEach(function(t,ti){ t.forEach(function(s,si){ if(s.c.id===cid){t1=ti;i1=si;} }); });
+  if(t1<0) return '這隻不在編組裡。';
+  return moveToTeam(dk, size, t1, i1, t2);
 }
 // 抽屜用：把某個位子移到另一團的空位
 function moveToTeam(dk, size, t1, i1, t2){
@@ -294,7 +303,7 @@ function draw(){
       let tds='';
       people.forEach(function(p){
         const mine = team.filter(s=>s.p.id===p.id);   // 同一團一個人最多一隻
-        tds += '<td class="cell">' + (mine.length
+        tds += '<td class="cell drop" data-d="'+d.key+'" data-team="'+ti+'">' + (mine.length
           ? chip(p, mine[0].c, d, {done:isCleared(mine[0].c.id,d.key), team:ti})
           : '<span class="empty">·</span>') + '</td>';
       });
@@ -302,7 +311,7 @@ function draw(){
         + (ti===0 ? '<td class="dun" rowspan="'+lines+'" data-open="'+d.key+'"><b>'+esc(d.name)+'</b>'
                     + (isOwnLineup(d.key)?' <span class="tag own">獨立</span>':'')
                     + '<em>'+d.size+' 人 · '+L.length+' 團</em></td>' : '')
-        + '<td class="tno"><b>'+(ti+1)+'</b></td>'
+        + '<td class="tno drop" data-d="'+d.key+'" data-team="'+ti+'"><b>'+(ti+1)+'</b></td>'
         + tds
         + '<td class="need">'+(open?'<b>'+open+'</b>':'0')+'</td></tr>';
     });
@@ -337,7 +346,8 @@ function draw(){
     '本週還要打 <b style="color:var(--ink)">'+todo+'</b> 場，已完成 '+done+' 場。'
     + '<b style="color:var(--ink)">一列就是一團，而且 4 人本全部共用同一套團、8 人本也是</b>——'
     + '不同副本不會換隊友。灰掉刪除線＝這本打完了，那格這本要找外援補。'
-    + '拖角色到另一列＝兩人互換團（<b style="color:var(--ink)">所有同人數的副本一起變</b>）。'
+    + '拖角色到<b style="color:var(--ink)">另一列的籌碼上</b>＝兩人互換團；拖到<b style="color:var(--ink)">另一列的空格或團號</b>＝直接搬過去'
+    + '（所有同人數的副本一起變）。'
     + '某本要特別配置的話，點副本名 → 「這本單獨調整」，那本就脫鉤成自己一份（標「獨立」），拖動只影響它。'
     + '副本、角色、裝備在<a href="roster.html">角色</a>頁編輯。';
   if(openDun) drawDrawer(openDun);
@@ -364,24 +374,46 @@ board.addEventListener('dragstart', function(e){
     if(o.dataset.team==='-1'||o.classList.contains('done')||o.dataset.team===ch.dataset.team)
       o.classList.add('no');
   });
+  // 空格／團號：同一團的、或那團已經有這個人的，不能放
+  const d=DB.dungeons.find(x=>x.key===ch.dataset.d);
+  const L=lineupOf(ch.dataset.d);
+  const me=(function(){ for(const t of L) for(const s of t) if(s.c.id===ch.dataset.c) return s.p.id; return null; })();
+  board.querySelectorAll('td.drop[data-d="'+ch.dataset.d+'"]').forEach(function(td){
+    const t2=+td.dataset.team;
+    const bad = t2===+ch.dataset.team || (L[t2]&&L[t2].some(s=>s.p.id===me)) || (d&&L[t2]&&L[t2].length>=d.size);
+    if(bad) td.classList.add('no');
+  });
 });
 board.addEventListener('dragend', function(){
   dragChip=null;
   board.querySelectorAll('.drag,.hit,.no').forEach(el=>el.classList.remove('drag','hit','no'));
 });
+// 目標有兩種：另一個籌碼（互換團）、空格或團號（搬到那團）
+function dropTarget(e){
+  const ch=e.target.closest('.chip');
+  if(ch) return {kind:'chip', el:ch};
+  const td=e.target.closest('td.drop');
+  if(td) return {kind:'cell', el:td};
+  return null;
+}
 board.addEventListener('dragover', function(e){
-  const ch=e.target.closest('.chip'); if(!ch||!dragChip) return;
-  if(ch.dataset.d!==dragChip.dataset.d||ch===dragChip||ch.classList.contains('no')) return;
-  e.preventDefault(); e.dataTransfer.dropEffect='move'; ch.classList.add('hit');
+  if(!dragChip) return;
+  const tg=dropTarget(e); if(!tg) return;
+  if(tg.el.dataset.d!==dragChip.dataset.d||tg.el===dragChip||tg.el.classList.contains('no')) return;
+  e.preventDefault(); e.dataTransfer.dropEffect='move'; tg.el.classList.add('hit');
 });
 board.addEventListener('dragleave', function(e){
-  const ch=e.target.closest('.chip'); if(ch) ch.classList.remove('hit');
+  const tg=dropTarget(e); if(tg) tg.el.classList.remove('hit');
 });
 board.addEventListener('drop', function(e){
-  const ch=e.target.closest('.chip'); if(!ch||!dragChip) return;
+  if(!dragChip) return;
+  const tg=dropTarget(e); if(!tg) return;
   e.preventDefault();
-  if(ch.dataset.d!==dragChip.dataset.d){ toast('只能在同一個副本裡換團。'); return; }
-  const err=swapTeams(dragChip.dataset.d, dragChip.dataset.c, ch.dataset.c);
+  const dk=dragChip.dataset.d, cid=dragChip.dataset.c;
+  if(tg.el.dataset.d!==dk){ toast('只能在同一個副本裡換團。'); dragChip=null; return; }
+  let err;
+  if(tg.kind==='chip') err=swapTeams(dk, cid, tg.el.dataset.c);
+  else { const d=DB.dungeons.find(x=>x.key===dk); err=moveChipToTeam(dk, d.size, cid, +tg.el.dataset.team); }
   dragChip=null;
   if(err) toast(err); else draw();
 });
