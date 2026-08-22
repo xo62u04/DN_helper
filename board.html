@@ -177,8 +177,8 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer"><button class="x" onclick="closeDrawer()">關閉</button><div id="dbody"></div></aside>
 
-<script src="shared.js?v=202608222202"></script>
-<script src="lineup.js?v=202608222202"></script>
+<script src="shared.js?v=202608222218"></script>
+<script src="lineup.js?v=202608222218"></script>
 <script>
 /* ---------------- 狀態 ---------------- */
 let filter = 'open';        // open = 只看這週還沒打完的副本
@@ -518,6 +518,36 @@ Sync.onChange(function(st){
 });
 if(Sync.ready()){ Sync.pull(true).then(draw); Sync.startPolling(Sync.status().canWrite?60:240); }
 window.onSynced=draw;
+
+/* ---------------- 拖曳時邊緣自動捲動 ----------------
+   原生拖放不會自己捲，拖到看不到的位置就放不了。
+   拖著東西靠近抽屜（或整頁）的上下緣 70px 內就自動捲，越靠邊越快。 */
+(function(){
+  let y=-1, timer=0, active=false;
+  const EDGE=70, MAX=18;
+  function tick(){
+    if(!active){ clearInterval(timer); timer=0; return; }
+    const dr=document.getElementById('drawer');
+    const inDrawer = dr.classList.contains('open') && (function(){
+      const r=dr.getBoundingClientRect(); return y>=r.top && y<=r.bottom && (event_x>=r.left);
+    })();
+    const el = inDrawer ? dr : null;
+    const top = inDrawer ? dr.getBoundingClientRect().top : 0;
+    const bottom = inDrawer ? dr.getBoundingClientRect().bottom : window.innerHeight;
+    let dy=0;
+    if(y>=0){
+      if(y < top+EDGE)       dy = -Math.ceil((EDGE-(y-top))/EDGE*MAX);
+      else if(y > bottom-EDGE) dy =  Math.ceil((EDGE-(bottom-y))/EDGE*MAX);
+    }
+    if(dy){ if(el) el.scrollTop+=dy; else window.scrollBy(0,dy); }
+  }
+  let event_x=0;
+  // 用 setInterval 不用 rAF：分頁沒在前景時 rAF 不會跑
+  document.addEventListener('dragstart', function(){ active=true; if(!timer) timer=setInterval(tick,16); });
+  document.addEventListener('dragover',  function(e){ y=e.clientY; event_x=e.clientX; });
+  document.addEventListener('dragend',   function(){ active=false; y=-1; });
+  document.addEventListener('drop',      function(){ active=false; y=-1; });
+})();
 
 // 頂列會因視窗寬度折行變高，凍結位置要實測，寫死會疊到內容上
 function fixTop(){
