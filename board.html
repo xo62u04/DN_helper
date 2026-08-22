@@ -62,7 +62,7 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 .board{width:100%;border-collapse:collapse;font-size:14px}
 .board th{font-weight:600;font-size:14px;color:var(--muted);text-align:left;
           padding:9px 12px;border-bottom:1px solid var(--rule);
-          position:sticky;top:126px;background:var(--ground);z-index:10}
+          position:sticky;top:var(--topH,126px);background:var(--ground);z-index:10}
 .board td{border-bottom:1px solid var(--rule);padding:7px 12px;vertical-align:top}
 .board tr:hover td{background:#1a1a20}
 .board tr.sel td{background:var(--surface)}
@@ -174,8 +174,8 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer"><button class="x" onclick="closeDrawer()">關閉</button><div id="dbody"></div></aside>
 
-<script src="shared.js"></script>
-<script src="lineup.js"></script>
+<script src="shared.js?v=202608221948"></script>
+<script src="lineup.js?v=202608221948"></script>
 <script>
 /* ---------------- 狀態 ---------------- */
 let filter = 'open';        // open = 只看這週還沒打完的副本
@@ -217,7 +217,7 @@ function chip(p, c, d, st){
 /* ---------------- 換團的規則 ----------------
    唯一的硬規則：同一個人不能在同一團出現兩次。                        */
 function swapTeams(dk, cidA, cidB){
-  const L=lineupCache[dk]; if(!L) return '編組還沒建立。';
+  const L=lineupOf(dk); if(!L.length) return '編組還沒建立。';
   let a=null,b=null;
   L.forEach(function(t,ti){ t.forEach(function(s,si){
     if(s.c.id===cidA) a={t:ti,i:si,s:s};
@@ -234,7 +234,7 @@ function swapTeams(dk, cidA, cidB){
 }
 // 抽屜用：把某個位子移到另一團的空位
 function moveToTeam(dk, size, t1, i1, t2){
-  const L=lineupCache[dk];
+  const L=lineupOf(dk);
   if(t1===t2) return '';
   if(L[t2].length>=capOf(size)) return '第 '+(t2+1)+' 團已經滿 '+capOf(size)+' 人了。';
   const a=L[t1][i1];
@@ -273,10 +273,11 @@ function draw(){
     const allDone = allChars(true).every(r=>isCleared(r.c.id,d.key));
     const sel = openDun===d.key ? ' sel' : '';
 
-    // 沒排進團的：已打完的、還有手動移出編組的
+    // 團的組合跨副本一致；這本打完的人留在原位灰掉。
+    // 「未排」列只收沒被排進任何團的
     const rest = {};
     people.forEach(function(p){
-      rest[p.id] = statesOf(p,d).filter(x=>x.done || x.team<0);
+      rest[p.id] = statesOf(p,d).filter(x=>x.team<0);
       statesOf(p,d).forEach(x=>{ x.done ? done++ : todo++; });
     });
     const hasRest = people.some(p=>rest[p.id].length);
@@ -284,12 +285,14 @@ function draw(){
 
     let out='';
     L.forEach(function(team, ti){
-      const open = Math.max(0, d.size - team.length);
+      // 這本的外援 = 空位 + 已打不來的人
+      const absent = team.filter(s=>isCleared(s.c.id,d.key)).length;
+      const open = Math.max(0, d.size - team.length + absent);
       let tds='';
       people.forEach(function(p){
         const mine = team.filter(s=>s.p.id===p.id);   // 同一團一個人最多一隻
         tds += '<td class="cell">' + (mine.length
-          ? chip(p, mine[0].c, d, {done:false, team:ti})
+          ? chip(p, mine[0].c, d, {done:isCleared(mine[0].c.id,d.key), team:ti})
           : '<span class="empty">·</span>') + '</td>';
       });
       out += '<tr class="'+(ti===0?'top ':'')+(allDone?'clear ':'')+sel+'" data-row="'+d.key+'">'
@@ -310,7 +313,7 @@ function draw(){
       out += '<tr class="'+(allDone?'clear ':'')+sel+'" data-row="'+d.key+'">'
         + (L.length===0 ? '<td class="dun" rowspan="1" data-open="'+d.key+'"><b>'+esc(d.name)+'</b>'
                           + '<em>'+d.size+' 人</em></td>' : '')
-        + '<td class="tno rest">已打</td>' + tds + '<td class="need">—</td></tr>';
+        + '<td class="tno rest">未排</td>' + tds + '<td class="need">—</td></tr>';
     }
     return out;
   }).join('');
@@ -327,12 +330,13 @@ function draw(){
   document.getElementById('fAll').className  = filter==='all'  ? 'on' : '';
   document.getElementById('foot').innerHTML =
     '本週還要打 <b style="color:var(--ink)">'+todo+'</b> 場，已完成 '+done+' 場。'
-    + '<b style="color:var(--ink)">一列就是一團</b>，橫著讀就知道誰跟誰同團；'
-    + '最後一列「已打」是這週打完、不用再排的。'
-    + '把角色拖到<b style="color:var(--ink)">同一個副本的另一列</b>就是兩人互換團；'
-    + '點副本名開細節，那裡可以拖進「待補外援」的空位。'
+    + '<b style="color:var(--ink)">一列就是一團，而且 4 人本全部共用同一套團、8 人本也是</b>——'
+    + '不同副本不會換隊友。灰掉刪除線＝這本打完了，那格這本要找外援補。'
+    + '拖角色到另一列＝兩人互換團（<b style="color:var(--ink)">所有同人數的副本一起變</b>）；'
+    + '點副本名開細節。'
     + '副本、角色、裝備在<a href="roster.html">角色</a>頁編輯。';
   if(openDun) drawDrawer(openDun);
+  if(typeof fixTop==='function') fixTop();
 }
 
 const board=document.querySelector('.board');
@@ -399,18 +403,22 @@ function drawDrawer(dk){
       + 'font-family:var(--num);padding:2px 6px"></div>';
 
   L.forEach(function(slots,i){
-    const open=Math.max(0,d.size-slots.length);
-    const pw=slots.reduce((n,s)=>n+effPowerOf(s.c),0);
-    const nHeal=slots.filter(s=>isHealer(s.c)).length;
-    const nTank=slots.filter(s=>isTank(s.c)).length;
+    const active=slots.filter(s=>!isCleared(s.c.id,d.key));   // 這本會到的人
+    const open=Math.max(0,d.size-active.length);
+    const pw=active.reduce((n,s)=>n+effPowerOf(s.c),0);
+    const nHeal=active.filter(s=>isHealer(s.c)).length;
+    const nTank=active.filter(s=>isTank(s.c)).length;
     h+='<div class="team"><h3>第 '+(i+1)+' 團 <span>'+slots.length+'/'+d.size+' · '+pw+'</span></h3>';
     slots.forEach(function(s,si){
       const e=elemOf(s.c), k=roleKind(s.c);
-      h+='<div class="slot" draggable="true" data-t="'+i+'" data-i="'+si+'">'
+      const dn=isCleared(s.c.id,d.key);
+      h+='<div class="slot" draggable="true" data-t="'+i+'" data-i="'+si+'"'
+        +(dn?' style="opacity:.45"':'')+'>'
         +'<span class="who">'+esc(s.p.name)+'</span>'
         +'<span class="nm'+(e?' ':'')+'" style="'+(e?'color:var(--'+({'火':'fire','水':'water','光':'light','暗':'dark'}[e])+')':'')+'">'
         +esc(charLabel(s.p,s.c))+'</span>'
         +(k!=='輸出'?'<span class="tag">'+(k==='補師'?'補':'坦')+'</span>':'')
+        +(dn?'<span class="tag">已打</span>':'')
         +'<span class="pw">'+effPowerOf(s.c)+'</span></div>';
     });
     for(let k=0;k<open;k++) h+='<div class="slot open" data-t="'+i+'" data-empty="1">待補外援</div>';
@@ -426,7 +434,8 @@ function drawDrawer(dk){
 
   if(d.req){
     const worst=L.map(function(t,i){
-      const have=t.reduce((n,s)=>n+effPowerOf(s.c),0)+Math.max(0,d.size-t.length)*d.req;
+      const act=t.filter(s=>!isCleared(s.c.id,d.key));
+      const have=act.reduce((n,s)=>n+effPowerOf(s.c),0)+Math.max(0,d.size-act.length)*d.req;
       return {i:i, gap:d.req*d.size-have};
     }).filter(x=>x.gap>0);
     if(worst.length) h+='<div class="note alert">戰力不足：'
@@ -458,7 +467,7 @@ drawerEl.addEventListener('drop', function(e){
   const sl=e.target.closest('.slot'); if(!sl||!dragSlot||sl===dragSlot) return;
   e.preventDefault();
   const d=DB.dungeons.find(x=>x.key===openDun); if(!d) return;
-  const L=lineupCache[openDun];
+  const L=lineupOf(openDun);
   const t1=+dragSlot.dataset.t, i1=+dragSlot.dataset.i, t2=+sl.dataset.t;
   let err='';
   if(sl.dataset.empty){
@@ -478,7 +487,7 @@ drawerEl.addEventListener('change', function(e){
 });
 document.addEventListener('keydown', function(e){ if(e.key==='Escape'&&openDun) closeDrawer(); });
 
-function regen(){ if(confirm('重新分團？手動調整過的編組會被重排。')) { regenLineups(); draw(); } }
+function regen(){ if(confirm('重新分團？手動調整過的編組會被重排，而且同人數的副本會一起變。')){ regenLineups(); draw(); } }
 
 /* ---------------- 同步狀態 ---------------- */
 Sync.onChange(function(st){
@@ -490,7 +499,14 @@ Sync.onChange(function(st){
 if(Sync.ready()){ Sync.pull(true).then(draw); Sync.startPolling(Sync.status().canWrite?60:240); }
 window.onSynced=draw;
 
-draw();
+// 頂列會因視窗寬度折行變高，凍結位置要實測，寫死會疊到內容上
+function fixTop(){
+  const t=document.querySelector('.top');
+  if(t) document.documentElement.style.setProperty('--topH', t.offsetHeight+'px');
+}
+window.addEventListener('resize', fixTop);
+
+draw(); fixTop();
 </script>
 </body>
 </html>

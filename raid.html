@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>副本分團 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608221930">
+<link rel="stylesheet" href="style.css?v=202608221948">
 <style>
   .matrix td,.matrix th{text-align:center;padding:5px 8px}
   .matrix td.who,.matrix th.who{text-align:left;white-space:nowrap}
@@ -80,10 +80,10 @@
     <h2>分團表</h2>
     <div class="row" style="margin-bottom:12px">
       <button class="primary" onclick="genAll()">重新整理</button>
-      <button onclick="regenLineups()">重新分團</button>
+      <button onclick="regenLineups();genAll()">重新分團</button>
       <label><input type="checkbox" id="sameElem"> 同屬性優先同團</label>
-      <span class="hint">每個副本各有自己的編組，打完那一本的人就從那一本移除、位子空出來。
-        名單有異動會自動重排，「重新分團」會以還沒打完的人重排。
+      <span class="hint">同人數的副本共用同一套團（4 人一套、8 人一套），不同副本不換隊友。
+        這本已打的人灰掉、位子算外援。「重新分團」會整組重排。
         「建議戰力」是每人平均，填了才會算裝備缺口；不知道就先留 0。</span>
     </div>
     <div class="msg tip">手動調整：<b>直接把人拖到想去的位置</b>（拖到別人身上就對調，拖到空位就移過去）。
@@ -97,8 +97,8 @@
   </div>
 </div>
 
-<script src="shared.js?v=202608221930"></script>
-<script src="lineup.js"></script>
+<script src="shared.js?v=202608221948"></script>
+<script src="lineup.js?v=202608221948"></script>
 <script>
 document.getElementById('nav').innerHTML = navBar('raid.html','SEA 經典服 · PC');
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
@@ -106,7 +106,7 @@ document.getElementById('curweek').textContent = curWeek()+' 起';
 document.getElementById('rd').textContent = WD[DB.cfg.resetDay];
 document.getElementById('sameElem').checked = DB.cfg.sameElem;
 document.getElementById('sameElem').addEventListener('change', e=>{
-  DB.cfg.sameElem=e.target.checked; touchMeta(); saveDB(); regenLineups();
+  DB.cfg.sameElem=e.target.checked; touchMeta(); saveDB(); regenLineups(); genAll();
 });
 document.getElementById('notice').innerHTML = storageOK ? ''
   : '<div class="msg warn">這個開啟方式不能存檔（localStorage 被停用），勾的紀錄關掉就沒了。</div>';
@@ -265,7 +265,7 @@ let pick=null;         // {dk, size, t, i}
 
 function canPut(dk,size,t,i){
   if(!pick||pick.dk!==dk) return false;
-  const L=lineupCache[dk]; if(!L) return false;
+  const L=lineupOf(dk); if(!L.length) return false;
   const from=L[pick.t], to=L[t];
   if(!from||!to) return false;
   if(pick.t===t) return true;
@@ -279,7 +279,7 @@ function canPut(dk,size,t,i){
 function whyBlocked(dk,size,t,i){
   if(!pick) return '';
   if(pick.dk!==dk) return '每個副本各有自己的編組，不能跨副本互換。';
-  const L=lineupCache[dk], from=L[pick.t], to=L[t];
+  const L=lineupOf(dk), from=L[pick.t], to=L[t];
   if(!from||!to) return '這個位置不能放。';
   const a=from[pick.i], b=(i==null?null:to[i]);
   if(i==null && to.length>=capOf(size))
@@ -304,7 +304,7 @@ function toast(msg){
 }
 
 function clickSlot(dk,size,t,i){
-  const L=lineupCache[dk];
+  const L=lineupOf(dk);
   if(!pick){ pick={dk,size,t,i}; return genAll(); }
   if(pick.dk===dk&&pick.t===t&&pick.i===i){ pick=null; return genAll(); }
   if(!canPut(dk,size,t,i)){ toast(whyBlocked(dk,size,t,i)); return; }
@@ -314,7 +314,7 @@ function clickSlot(dk,size,t,i){
 }
 function clickEmpty(dk,size,t){
   if(!pick||pick.dk!==dk) return;
-  const L=lineupCache[dk];
+  const L=lineupOf(dk);
   if(!canPut(dk,size,t,null)){ toast(whyBlocked(dk,size,t,null)); return; }
   const a=L[pick.t].splice(pick.i,1)[0];
   L[t].push(a);
@@ -322,9 +322,9 @@ function clickEmpty(dk,size,t){
   L.forEach((t2,k)=>{ if(!t2.length) L.splice(k,1); });
   persistLineup(dk); genAll();
 }
-function addTeam(dk){ (lineupCache[dk]||[]).push([]); persistLineup(dk); genAll(); }
+function addTeam(dk){ lineupOf(dk).push([]); persistLineup(dk); genAll(); }
 function benchSlot(dk,t,i){
-  const L=lineupCache[dk];
+  const L=lineupOf(dk);
   L[t].splice(i,1);
   if(!L[t].length) L.splice(t,1);
   pick=null; persistLineup(dk); genAll();
@@ -332,11 +332,11 @@ function benchSlot(dk,t,i){
 // 這一本還沒打、但沒被排進任何一團的人（手動移掉的，或名單新加的）
 function benchOf(dk){
   const inTeam={};
-  (lineupCache[dk]||[]).forEach(t=>t.forEach(s=>inTeam[s.p.id+'/'+s.c.id]=1));
-  return eligible(dk).filter(r=>!inTeam[r.p.id+'/'+r.c.id]);
+  lineupOf(dk).forEach(t=>t.forEach(s=>inTeam[s.p.id+'/'+s.c.id]=1));
+  return allChars(true).filter(r=>!inTeam[r.p.id+'/'+r.c.id] && !isCleared(r.c.id,dk));
 }
 function addFromBench(dk,size,pid,cid){
-  const L=lineupCache[dk];
+  const L=lineupOf(dk);
   const p=DB.people.find(x=>x.id===pid), c=p&&p.chars.find(x=>x.id===cid);
   if(!c) return;
   let t=L.findIndex(t2=>t2.length<capOf(size) && !clashes(t2,{p,c},-1));
@@ -349,11 +349,11 @@ function addFromBench(dk,size,pid,cid){
 function genAll(){
   const out=document.getElementById('out'); out.innerHTML='';
   DB.dungeons.forEach(function(d){
-    // 這一本自己的編組。打完這一本的人已經在 lineupFor 裡被移除，
-    // 所以畫面上看到的空位就是真的空位，拖人進去會成功。
+    // 編組是同人數副本共用的，含這本已打的人（顯示成灰色、位子算外援）
     const teams=lineupFor(d.key, d.size);
     const pending=allChars(true).filter(r=>!isCleared(r.c.id,d.key));
-    const live=teams.filter(t=>t.length);
+    const actOf=t=>t.filter(s=>!isCleared(s.c.id,d.key));
+    const live=teams.filter(t=>actOf(t).length);
     const div=document.createElement('div');
     div.className='dcard';
     let h='<div class="dhead"><span class="nm">'+esc(d.name)+'</span>'
@@ -361,38 +361,43 @@ function genAll(){
         + '<label class="hint">建議戰力/人</label>'
         + '<input type="number" value="'+(d.req||0)+'" data-dk="'+d.key+'" style="width:100px">'
         + '<span class="hint">待打 '+pending.length+' 隻 · 還要開 '+live.length+' 團 · 合計要找 '
-        + live.reduce((n,t)=>n+Math.max(0,d.size-t.length),0) + ' 個外援</span>'
+        + live.reduce((n,t)=>n+Math.max(0,d.size-actOf(t).length),0) + ' 個外援</span>'
         + '<button class="mini" onclick="addTeam(\''+d.key+'\')">＋加一團</button></div>';
     if(!pending.length){
       h+='<div class="msg ok">本週全部打完了。</div>';
     }else{
       h+='<div class="teams">';
       teams.forEach(function(slots,i){
-        if(!slots.length) return;
-        const open=Math.max(0,d.size-slots.length);
-        // 團隊戰力＝等效輸出加總（補師和坦已照職業係數折算）
-        const tp=slots.reduce((n,s)=>n+effPowerOf(s.c),0);
-        const els={}; slots.forEach(s=>{const e=elemOf(s.c); if(e) els[e]=(els[e]||0)+1;});
+        const act=actOf(slots);
+        if(!act.length) return;
+        const open=Math.max(0,d.size-act.length);
+        // 統計只算這本會到的人（已打的不列入）
+        const tp=act.reduce((n,s)=>n+effPowerOf(s.c),0);
+        const els={}; act.forEach(s=>{const e=elemOf(s.c); if(e) els[e]=(els[e]||0)+1;});
         const elTag=Object.keys(els).map(e=>'<span class="tag e-'+e+'">'+e+' '+els[e]+'</span>').join(' ');
-        const nHeal=slots.filter(s=>isHealer(s.c)).length;
-        const nTank=slots.filter(s=>isTank(s.c)).length;
+        const nHeal=act.filter(s=>isHealer(s.c)).length;
+        const nTank=act.filter(s=>isTank(s.c)).length;
         const lack=[]; if(!nHeal) lack.push('補'); if(!nTank) lack.push('坦');
         h+='<div class="team '+(open?'short':'')+'">'
           +'<div class="thead"><b>第 '+(i+1)+' 團</b>'
-          +'<span>'+slots.length+'/'+d.size+' 人 · 等效輸出 '+tp
+          +'<span>'+act.length+'/'+d.size+' 人'
+          +(slots.length>act.length?'（'+(slots.length-act.length)+' 人已打）':'')
+          +' · 等效輸出 '+tp
           +' <span class="tag t-heal">補 '+nHeal+'</span> <span class="tag t-tank">坦 '+nTank+'</span> '
           +elTag
           +(lack.length?' <span class="miss">缺'+lack.join('、')+'</span>':'')
           +'</span></div>';
         slots.forEach(function(s,idx){
           const e=elemOf(s.c), k=roleKind(s.c);
+          const dn=isCleared(s.c.id,d.key);
           const kc = k==='補師'?'t-heal' : k==='坦'?'t-tank' : 't-dps';
           const on = pick&&pick.dk===d.key&&pick.t===i&&pick.i===idx;
           const no = pick&&pick.dk===d.key&&!on&&!canPut(d.key,d.size,i,idx);
-          h+='<div class="slot pickable '+(on?'sel':'')+' '+(no?'no':'')+'"'
+          h+='<div class="slot pickable '+(on?'sel':'')+' '+(no?'no':'')+(dn?' cleared':'')+'"'
             +' draggable="true" data-dun="'+d.key+'" data-size="'+d.size+'" data-t="'+i+'" data-i="'+idx+'">'
             +'<span class="who">'+esc(s.p.name)+'</span>'
             +'<span class="ch">'+esc(charLabel(s.p,s.c))+'</span>'
+            +(dn?'<span class="tag t-done">已打</span>':'')
             +(e?'<span class="tag e-'+e+'">'+e+'</span>':'')
             +'<span class="tag '+kc+'">'+(k==='補師'?'補':k)+'</span>'
             +'<span class="pw">'+effPowerOf(s.c)
@@ -406,7 +411,7 @@ function genAll(){
           h+='<div class="slot open '+(pick&&pick.dk===d.key?(canDrop?'drop':'no'):'')+'"'
             +' data-dun="'+d.key+'" data-size="'+d.size+'" data-t="'+i+'" data-empty="1">'
             +(pick&&pick.dk===d.key?'▸ 移到這裡':'— 待補外援 —')+'</div>';
-        h+=buffLine(slots)+recommend(slots,open)+gapReport(slots,d.size,+d.req||0)+'</div>';
+        h+=buffLine(act)+recommend(act,open)+gapReport(act,d.size,+d.req||0)+'</div>';
       });
       h+='</div>';
       const bench=benchOf(d.key);
@@ -501,12 +506,11 @@ function onDun(e){
     DB.removed=DB.removed||[];
     if(DB.removed.indexOf(d.key)<0) DB.removed.push(d.key);
     DB.dungeons.splice(i,1);
-    delete lineupCache[d.key];
+    regenLineups();
   }else if(f==='name'){ d.name=e.target.value.trim()||d.name; }
   else if(f==='size'){
     d.size=Math.max(1,+e.target.value||4);
-    delete lineupCache[d.key];              // 人數變了就重排這一本
-    const st=loadLineups(); delete st[d.key]; saveLineups(st);
+    regenLineups();              // 編組同人數共用，人數變了整組重排
   }
   else if(f==='req'){ d.req=Math.max(0,+e.target.value||0); }
   touchMeta(); saveDB(); renderDunEditor(); renderMatrix(); genAll();

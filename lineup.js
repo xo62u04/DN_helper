@@ -64,16 +64,29 @@ function scoreTeams(rounds,size){
 
 /* ---- 這團的隊伍增益合計：各類別各自加總，不同類別不相加 ---- */
 
-const LINEUP_KEY='dn_helper_lineup_v2';
-const lineupCache={};        // key = 副本 key
+const LINEUP_KEY='dn_helper_lineup_v3';
+const lineupCache={};        // key = 'sz'+人數：同人數的副本共用同一份編組
 
-// 這一本還沒打的人
-function eligible(dk){ return allChars(true).filter(r=>!isCleared(r.c.id, dk)); }
+// 團的組合跨副本一致（4 人本一套、8 人本一套），
+// 不然同一批人每本副本換一次隊友，實際上沒辦法打。
+const lkey = size => 'sz'+size;
+function lineupKeyOf(dk){
+  const d=DB.dungeons.find(x=>x.key===dk);
+  return d ? lkey(d.size) : dk;
+}
+// 拿編組陣列：副本 key 或 'szN' 都通
+function lineupOf(dk){ return lineupCache[lineupKeyOf(dk)] || []; }
+
+// 這個人數的副本裡，這隻角色還有沒有沒打完的
+function needsSize(c, size){
+  return DB.dungeons.filter(d=>d.size===size).some(d=>!isCleared(c.id, d.key));
+}
+function eligible(size){ return allChars(true).filter(r=>needsSize(r.c, size)); }
 
 // 名單指紋只看「有哪些人」，不看打勾狀態 ——
-// 打個勾就整個重排的話，編組又變成換來換去了。
-function rosterSig(dk){
-  return dk+'|'+allChars(true).map(r=>r.p.id+'/'+r.c.id).sort().join(',');
+// 打個勾就整個重排的話，編組又變成換來換去了
+function rosterSig(size){
+  return size+'|'+allChars(true).map(r=>r.p.id+'/'+r.c.id).sort().join(',');
 }
 function loadLineups(){
   try{ return JSON.parse(LS.get(LINEUP_KEY))||{}; }catch(e){ return {}; }
@@ -90,45 +103,41 @@ function hydrate(saved){
     }).filter(Boolean);
   }).filter(t=>t.length);
 }
-function persistLineup(dk){
+function persistLineup(dkOrKey){
+  const key = /^sz\d+$/.test(String(dkOrKey)) ? dkOrKey : lineupKeyOf(dkOrKey);
+  const size = +String(key).slice(2)||0;
   const store=loadLineups();
-  store[dk]={sig:rosterSig(dk),
-             teams:(lineupCache[dk]||[]).map(t=>t.map(s=>({pid:s.p.id, cid:s.c.id})))};
+  store[key]={sig:rosterSig(size),
+              teams:(lineupCache[key]||[]).map(t=>t.map(s=>({pid:s.p.id, cid:s.c.id})))};
   saveLineups(store);
 }
-
-// 這一本已經打完的人從編組裡拿掉，空出來的位子才是真的空位
-function pruneCleared(dk){
-  const L=lineupCache[dk]; let changed=false;
-  L.forEach(function(t){
-    for(let i=t.length-1;i>=0;i--) if(isCleared(t[i].c.id, dk)){ t.splice(i,1); changed=true; }
-  });
-  for(let i=L.length-1;i>=0;i--) if(!L[i].length){ L.splice(i,1); changed=true; }
-  if(changed) persistLineup(dk);
-  return L;
-}
 function lineupFor(dk, size, force){
-  if(force || !lineupCache[dk]){
-    const sig=rosterSig(dk);
+  const key=lkey(size);
+  if(force || !lineupCache[key]){
+    const sig=rosterSig(size);
     const store=loadLineups();
     let teams=null;
-    if(!force && store[dk] && store[dk].sig===sig){
-      const t=hydrate(store[dk].teams);
+    if(!force && store[key] && store[key].sig===sig){
+      const t=hydrate(store[key].teams);
       if(t.length) teams=t;
     }
     if(!teams){
-      const pool=eligible(dk);
+      const pool=eligible(size);
       teams=buildTeams(pool.length?pool:allChars(true), size);
     }
-    lineupCache[dk]=teams;
-    persistLineup(dk);
+    lineupCache[key]=teams;
+    persistLineup(key);
   }
-  return pruneCleared(dk);
+  return lineupCache[key];
+}
+// 同步拉下來會換掉整份 DB，編組快取裡的舊物件要跟著丟掉重建，
+// 不然 charLabel 對不到人會顯示成「毀滅(0)」這種鬼東西
+function dropLineupCache(){
+  Object.keys(lineupCache).forEach(k=>delete lineupCache[k]);
 }
 function regenLineups(){
-  Object.keys(lineupCache).forEach(k=>delete lineupCache[k]);
+  dropLineupCache();
   saveLineups({});
-  genAll();
 }
 
 // 同一個人的兩隻角色不能在同一團

@@ -367,6 +367,7 @@ function charLabel(p, c){
   const same = p.chars.filter(x => x.name === c.name);
   if(same.length < 2) return c.name;
   const i = same.indexOf(c);
+  if(i < 0) return c.name;                       // 對不到就別亂編號
   return c.name + ('①②③④⑤⑥⑦⑧⑨'.charAt(i) || ('(' + (i+1) + ')'));
 }
 // 只有 pid/cid 的時候（隊伍存的是 id）用這個
@@ -537,6 +538,8 @@ const Sync = (function(){
       if(got&&got.obj){
         DB = mergeDB(got.obj, DB);
         LS.set(DBKEY, JSON.stringify(DB)); POWCACHE=null;
+        // 編組快取抓著舊 DB 的物件，不丟掉會顯示錯的名字
+        if(typeof dropLineupCache==='function') dropLineupCache();
       }
       state.last=new Date(); state.busy=false;
       emit(got&&got.obj ? '已同步 '+state.last.toLocaleTimeString() : '雲端還沒有存檔');
