@@ -492,6 +492,36 @@
       "req": 0
     },
     {
+      "key": "hellk",
+      "name": "地獄K",
+      "size": 4,
+      "req": 0
+    },
+    {
+      "key": "desert1r",
+      "name": "沙龍 1R",
+      "size": 4,
+      "req": 0
+    },
+    {
+      "key": "desert2r",
+      "name": "沙龍 2R",
+      "size": 4,
+      "req": 0
+    },
+    {
+      "key": "desert3r",
+      "name": "沙龍 3R",
+      "size": 4,
+      "req": 0
+    },
+    {
+      "key": "desert4r",
+      "name": "沙龍 4R",
+      "size": 4,
+      "req": 0
+    },
+    {
       "key": "sea",
       "name": "海龍",
       "size": 8,
@@ -508,69 +538,10 @@
       "name": "沙龍",
       "size": 8,
       "req": 0
-    },
-    {
-      "key": "hellk",
-      "name": "地獄K",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "profk1r",
-      "name": "K教授 1R",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "profk2r",
-      "name": "K教授 2R",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "profk3r",
-      "name": "K教授 3R",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "profk4r",
-      "name": "K教授 4R",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "desert1",
-      "name": "沙龍 1",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "desert2",
-      "name": "沙龍 2",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "desert3",
-      "name": "沙龍 3",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "desert4",
-      "name": "沙龍 4",
-      "size": 4,
-      "req": 0
-    },
-    {
-      "key": "desertr",
-      "name": "沙龍 R",
-      "size": 4,
-      "req": 0
     }
   ],
   "removed": [],
+  "migv": 3,
   "clears": {
     "2026-08-13": {},
     "2026-08-15": {
@@ -682,9 +653,23 @@
         "v": true,
         "t": 1787315836756
       },
-      "i26|desert1": {
+      "i26|desert1r": {
         "v": true,
         "t": 1787315843654
+      }
+    },
+    "2026-08-22": {
+      "i18|abp_h": {
+        "v": false,
+        "t": 1787397675116
+      },
+      "i17|abp_h": {
+        "v": false,
+        "t": 1787397675920
+      },
+      "i19|abp_h": {
+        "v": false,
+        "t": 1787397677087
       }
     }
   },
