@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>本週排班 — DN Helper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ===================================================================
+   本週排班板
+   規劃用的桌機介面。原本 12 張副本卡疊成 10 個螢幕高，改成一塊板：
+   橫列＝副本、直行＝成員，一個螢幕看完整週。
+
+   配色：中性炭灰＋骨白做結構，火水光暗四個屬性色是整頁唯一的飽和色，
+   顏色只用來承載資料。已完成的往後退成灰，讓「還沒打的」自己跳出來。
+   =================================================================== */
+:root{
+  --ground:#15151a; --surface:#1d1d24; --raised:#26262f; --rule:#34343f;
+  --ink:#eceaf2; --muted:#8d8a99; --bone:#e3d9c2; --done:#575c68;
+  --fire:#ff7a45; --water:#45b8ff; --light:#ffc94d; --dark:#a86bff;
+  --alert:#ff4d4d;
+  --ui:"Archivo Narrow","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --num:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--ui);font-size:15px}
+body{padding-bottom:40vh}
+a{color:var(--bone)}
+:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
+
+/* ---- 頂 ---- */
+.top{position:sticky;top:0;z-index:30;background:var(--ground);
+     border-bottom:1px solid var(--rule);padding:14px 22px 0}
+.top-row{display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.left{font-family:var(--num);font-size:40px;font-weight:600;line-height:1;color:var(--bone)}
+.left small{font-family:var(--ui);font-size:14px;font-weight:600;letter-spacing:.1em;
+            color:var(--muted);margin-left:9px;text-transform:uppercase}
+.week{font-size:14px;color:var(--muted);letter-spacing:.04em}
+.grow{flex:1}
+nav{display:flex;gap:2px}
+nav a{padding:7px 15px;text-decoration:none;color:var(--muted);font-size:14px;
+      font-weight:600;letter-spacing:.08em;border-bottom:2px solid transparent}
+nav a:hover{color:var(--ink)}
+nav a.on{color:var(--bone);border-bottom-color:var(--bone)}
+.bar{height:3px;background:var(--rule);margin-top:12px}
+.bar i{display:block;height:100%;background:var(--bone);transition:width .4s ease}
+.tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 0 12px}
+button{font-family:var(--ui);font-size:14px;font-weight:600;letter-spacing:.03em;
+       background:transparent;color:var(--muted);border:1px solid var(--rule);
+       padding:6px 13px;cursor:pointer}
+button:hover{color:var(--ink);border-color:var(--muted)}
+button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--done);display:inline-block;margin-right:7px}
+.dot.live{background:var(--bone)}
+.dot.busy{background:var(--water)}
+.dot.dirty{background:var(--fire)}
+
+/* ---- 板 ---- */
+.board{width:100%;border-collapse:collapse;font-size:14px}
+.board th{font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:12px;
+          color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);
+          position:sticky;top:132px;background:var(--ground);z-index:10}
+.board td{border-bottom:1px solid var(--rule);padding:7px 12px;vertical-align:top}
+.board tr:hover td{background:#1a1a20}
+.board tr.sel td{background:var(--surface)}
+.board tr.clear td{opacity:.4}
+.dun{width:170px;cursor:pointer;white-space:nowrap}
+.dun b{font-size:16px;font-weight:600;color:var(--ink)}
+.dun em{font-style:normal;font-family:var(--num);font-size:11px;color:var(--muted);
+        display:block;margin-top:2px;letter-spacing:.06em}
+.board tr.sel .dun b{color:var(--bone)}
+.cell{min-width:132px}
+.need{width:74px;text-align:right;font-family:var(--num);font-size:15px;color:var(--muted)}
+.need b{color:var(--fire);font-weight:600}
+
+/* 角色籌碼：屬性色只出現在這裡 */
+.chip{display:inline-flex;align-items:center;gap:5px;margin:2px 3px 2px 0;padding:3px 8px;
+      border:1px solid var(--rule);cursor:pointer;user-select:none;line-height:1.3;
+      background:var(--surface);white-space:nowrap}
+.chip:hover{border-color:var(--muted)}
+.chip .t{font-family:var(--num);font-size:10px;color:var(--muted)}
+.chip .n{font-size:14px;font-weight:600}
+.chip.e-火 .n{color:var(--fire)} .chip.e-水 .n{color:var(--water)}
+.chip.e-光 .n{color:var(--light)} .chip.e-暗 .n{color:var(--dark)}
+.chip.done{background:transparent;border-color:#2a2a33;color:var(--done)}
+.chip.done .n{color:var(--done);text-decoration:line-through}
+.chip.done .t{color:#3d414b}
+.chip.bench{border-style:dashed;opacity:.75}
+.chip .r{font-size:10px;color:var(--muted);letter-spacing:.05em}
+.empty{color:#4a4a55;font-size:13px}
+
+/* ---- 抽屜 ---- */
+.drawer{position:fixed;right:0;top:0;bottom:0;width:min(460px,92vw);background:var(--surface);
+        border-left:1px solid var(--rule);z-index:40;overflow-y:auto;padding:20px 22px 60px;
+        transform:translateX(100%);transition:transform .22s ease;box-shadow:-20px 0 50px #0007}
+.drawer.open{transform:none}
+.drawer h2{font-size:22px;margin:0 0 3px;font-weight:600}
+.drawer .sub{font-family:var(--num);font-size:12px;color:var(--muted);letter-spacing:.06em}
+.x{position:absolute;top:16px;right:18px}
+.team{border:1px solid var(--rule);margin-top:14px}
+.team h3{margin:0;padding:8px 12px;font-size:13px;font-weight:600;letter-spacing:.1em;
+         text-transform:uppercase;color:var(--muted);background:var(--raised);
+         display:flex;justify-content:space-between;gap:10px}
+.team h3 span{font-family:var(--num);color:var(--bone);letter-spacing:0}
+.slot{display:flex;align-items:center;gap:9px;padding:6px 12px;border-top:1px solid #2a2a33}
+.slot .who{width:48px;color:var(--muted);font-size:12px;flex:none}
+.slot .nm{flex:1;font-weight:600}
+.slot .pw{font-family:var(--num);font-size:12px;color:var(--muted)}
+.slot.open{color:#4a4a55;font-style:italic;font-size:13px}
+.note{margin-top:12px;padding:10px 12px;border-left:2px solid var(--rule);
+      font-size:13.5px;color:var(--muted);line-height:1.7}
+.note b{color:var(--ink);font-weight:600}
+.note.alert{border-left-color:var(--alert)}
+.tag{font-family:var(--num);font-size:10px;letter-spacing:.06em;padding:1px 5px;
+     border:1px solid var(--rule);color:var(--muted)}
+.scrim{position:fixed;inset:0;background:#0009;z-index:35;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.foot{padding:16px 22px;color:var(--muted);font-size:13px;line-height:1.8}
+@media(max-width:900px){
+  .board th{position:static}
+  .dun{width:auto}
+  .chip{padding:7px 10px}          /* 手機上放大到好點 */
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="top-row">
+    <span class="brand">DN Helper</span>
+    <div><div class="left" id="left">—</div></div>
+    <div class="week" id="week"></div>
+    <span class="grow"></span>
+    <nav id="nav"></nav>
+  </div>
+  <div class="bar"><i id="barfill" style="width:0"></i></div>
+  <div class="tools">
+    <button id="fOpen" onclick="setFilter('open')">還沒打完</button>
+    <button id="fAll" onclick="setFilter('all')">全部</button>
+    <span style="width:10px"></span>
+    <button onclick="regen()">重新分團</button>
+    <button onclick="Sync.pull().then(draw)"><span class="dot" id="sdot"></span><span id="stxt">同步</span></button>
+    <span class="grow"></span>
+    <span class="week" id="hint">點角色＝標記打完 · 點副本名＝看分團細節</span>
+  </div>
+</div>
+
+<table class="board"><thead id="bhead"></thead><tbody id="bbody"></tbody></table>
+
+<div class="foot" id="foot"></div>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer"><button class="x" onclick="closeDrawer()">關閉</button><div id="dbody"></div></aside>
+
+<script src="shared.js"></script>
+<script src="lineup.js"></script>
+<script>
+/* ---------------- 狀態 ---------------- */
+let filter = 'open';        // open = 只看這週還沒打完的副本
+let openDun = null;
+
+const WD=['週日','週一','週二','週三','週四','週五','週六'];
+document.getElementById('nav').innerHTML =
+  [['board.html','排班'],['roster.html','角色'],['raid.html','舊版分團'],['index.html','深淵']]
+  .map(x=>'<a href="'+x[0]+'"'+(x[0]==='board.html'?' class="on"':'')+'>'+x[1]+'</a>').join('');
+
+function setFilter(f){ filter=f; draw(); }
+
+/* ---------------- 一格：某人在某本的所有角色 ---------------- */
+// 打完的人已經被 pruneCleared 從編組移除，所以要自己把三種狀態併起來：
+// 已打完的、排在第幾團的、還沒排進團的
+function statesOf(p, d){
+  const L = lineupFor(d.key, d.size);
+  return p.chars.filter(c=>c.active).map(function(c){
+    let team = -1;
+    L.forEach(function(t,i){ if(t.some(s=>s.c.id===c.id)) team=i; });
+    return { c:c, done:isCleared(c.id,d.key), team:team };
+  });
+}
+
+function chip(p, c, d, st){
+  const e = elemOf(c);
+  const k = roleKind(c);
+  const role = k==='補師' ? '補' : k==='坦' ? '坦' : '';
+  return '<span class="chip '+(st.done?'done':(st.team<0?'bench':''))+(e?' e-'+e:'')+'"'
+    + ' data-c="'+c.id+'" data-d="'+d.key+'" title="'+esc(p.name+' · '+charLabel(p,c))
+    + (st.done?'（本週已打）':(st.team>=0?'（第 '+(st.team+1)+' 團）':'（沒排進團）'))+'">'
+    + '<span class="t">'+(st.done?'✓':(st.team>=0?(st.team+1):'—'))+'</span>'
+    + '<span class="n">'+esc(charLabel(p,c))+'</span>'
+    + (role?'<span class="r">'+role+'</span>':'')
+    + '</span>';
+}
+
+/* ---------------- 板 ---------------- */
+function draw(){
+  POWCACHE=null;
+  const people = DB.people.filter(p=>p.active && p.chars.some(c=>c.active));
+  const duns = DB.dungeons.filter(function(d){
+    if(filter==='all') return true;
+    return allChars(true).some(r=>!isCleared(r.c.id,d.key));
+  });
+
+  document.getElementById('bhead').innerHTML =
+    '<tr><th>副本</th>' + people.map(p=>'<th>'+esc(p.name)+'</th>').join('')
+    + '<th style="text-align:right">外援</th></tr>';
+
+  let todo=0, done=0, recruits=0;
+  const rows = duns.map(function(d){
+    const L = lineupFor(d.key, d.size);
+    const need = L.reduce((n,t)=>n+Math.max(0,d.size-t.length),0);
+    recruits += need;
+    const allDone = allChars(true).every(r=>isCleared(r.c.id,d.key));
+    let tds='';
+    people.forEach(function(p){
+      const list = statesOf(p,d);
+      list.forEach(x=>{ x.done ? done++ : todo++; });
+      tds += '<td class="cell">'
+           + (list.length ? list.map(x=>chip(p,x.c,d,x)).join('') : '<span class="empty">—</span>')
+           + '</td>';
+    });
+    return '<tr class="'+(allDone?'clear':'')+(openDun===d.key?' sel':'')+'" data-row="'+d.key+'">'
+      + '<td class="dun" data-open="'+d.key+'"><b>'+esc(d.name)+'</b>'
+      + '<em>'+d.size+' 人 · '+L.length+' 團</em></td>'
+      + tds
+      + '<td class="need">'+(need?'<b>'+need+'</b>':'0')+'</td></tr>';
+  }).join('');
+
+  document.getElementById('bbody').innerHTML = rows ||
+    '<tr><td colspan="9" style="padding:40px 12px;color:var(--muted)">本週全部打完了。</td></tr>';
+
+  document.getElementById('left').innerHTML = todo + '<small>場沒打</small>';
+  document.getElementById('week').textContent =
+    curWeek() + ' 起 · 每' + WD[DB.cfg.resetDay] + '重置 · 要找 ' + recruits + ' 人次外援';
+  const total = todo+done;
+  document.getElementById('barfill').style.width = total ? (done/total*100)+'%' : '0';
+  document.getElementById('fOpen').className = filter==='open' ? 'on' : '';
+  document.getElementById('fAll').className  = filter==='all'  ? 'on' : '';
+  document.getElementById('foot').innerHTML =
+    '本週還要打 <b style="color:var(--ink)">'+todo+'</b> 場，已完成 '+done+' 場。'
+    + '灰掉刪除線＝這週打完了；籌碼左邊的數字是第幾團，「—」是還沒排進團。'
+    + '副本、角色、裝備在<a href="roster.html">角色</a>頁編輯。';
+  if(openDun) drawDrawer(openDun);
+}
+
+document.querySelector('.board').addEventListener('click', function(e){
+  const open = e.target.closest('[data-open]');
+  if(open){ openDrawer(open.dataset.open); return; }
+  const ch = e.target.closest('.chip');
+  if(ch){ setCleared(ch.dataset.c, ch.dataset.d, !isCleared(ch.dataset.c, ch.dataset.d)); draw(); }
+});
+
+/* ---------------- 抽屜：一本的分團細節 ---------------- */
+function openDrawer(dk){
+  openDun=dk;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('scrim').classList.add('on');
+  drawDrawer(dk); draw();
+}
+function closeDrawer(){
+  openDun=null;
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('scrim').classList.remove('on');
+  draw();
+}
+function drawDrawer(dk){
+  const d=DB.dungeons.find(x=>x.key===dk); if(!d) return;
+  const L=lineupFor(d.key,d.size);
+  let h='<h2>'+esc(d.name)+'</h2><div class="sub">'+d.size+' 人本 · '+L.length+' 團 · 建議戰力/人 '
+      + '<input type="number" value="'+(d.req||0)+'" data-req="'+d.key+'" '
+      + 'style="width:80px;background:var(--raised);border:1px solid var(--rule);color:var(--ink);'
+      + 'font-family:var(--num);padding:2px 6px"></div>';
+
+  L.forEach(function(slots,i){
+    const open=Math.max(0,d.size-slots.length);
+    const pw=slots.reduce((n,s)=>n+effPowerOf(s.c),0);
+    const nHeal=slots.filter(s=>isHealer(s.c)).length;
+    const nTank=slots.filter(s=>isTank(s.c)).length;
+    h+='<div class="team"><h3>第 '+(i+1)+' 團 <span>'+slots.length+'/'+d.size+' · '+pw+'</span></h3>';
+    slots.forEach(function(s){
+      const e=elemOf(s.c), k=roleKind(s.c);
+      h+='<div class="slot"><span class="who">'+esc(s.p.name)+'</span>'
+        +'<span class="nm'+(e?' ':'')+'" style="'+(e?'color:var(--'+({'火':'fire','水':'water','光':'light','暗':'dark'}[e])+')':'')+'">'
+        +esc(charLabel(s.p,s.c))+'</span>'
+        +(k!=='輸出'?'<span class="tag">'+(k==='補師'?'補':'坦')+'</span>':'')
+        +'<span class="pw">'+effPowerOf(s.c)+'</span></div>';
+    });
+    for(let k=0;k<open;k++) h+='<div class="slot open">待補外援</div>';
+    const lack=[]; if(!nHeal) lack.push('補'); if(!nTank) lack.push('坦');
+    if(open||lack.length){
+      h+='<div class="note'+(lack.length?' alert':'')+'">'
+        +(open?'還缺 <b>'+open+'</b> 人。':'')
+        +(lack.length?' 團裡沒有 <b>'+lack.join('、')+'</b>。':'')
+        +'</div>';
+    }
+    h+='</div>';
+  });
+
+  if(d.req){
+    const worst=L.map(function(t,i){
+      const have=t.reduce((n,s)=>n+effPowerOf(s.c),0)+Math.max(0,d.size-t.length)*d.req;
+      return {i:i, gap:d.req*d.size-have};
+    }).filter(x=>x.gap>0);
+    if(worst.length) h+='<div class="note alert">戰力不足：'
+      + worst.map(x=>'第 '+(x.i+1)+' 團差 <b>'+Math.round(x.gap)+'</b>').join('、')
+      + '。優先升團裡最低的那幾隻，或把外援門檻拉高。</div>';
+  }
+  document.getElementById('dbody').innerHTML=h;
+}
+document.getElementById('drawer').addEventListener('change', function(e){
+  const k=e.target.dataset.req; if(!k) return;
+  const d=DB.dungeons.find(x=>x.key===k); if(!d) return;
+  d.req=Math.max(0,+e.target.value||0); touchMeta(); saveDB(); drawDrawer(k);
+});
+document.addEventListener('keydown', function(e){ if(e.key==='Escape'&&openDun) closeDrawer(); });
+
+function regen(){ if(confirm('重新分團？手動調整過的編組會被重排。')) { regenLineups(); draw(); } }
+
+/* ---------------- 同步狀態 ---------------- */
+Sync.onChange(function(st){
+  const dot=document.getElementById('sdot'), txt=document.getElementById('stxt');
+  if(!dot) return;
+  dot.className='dot'+(st.busy?' busy':st.dirty?' dirty':st.ok?' live':'');
+  txt.textContent = st.busy?'同步中':st.dirty?'未上傳':st.ok?'已同步':'未設定';
+});
+if(Sync.ready()){ Sync.pull(true).then(draw); Sync.startPolling(Sync.status().canWrite?60:240); }
+window.onSynced=draw;
+
+draw();
+</script>
+</body>
+</html>

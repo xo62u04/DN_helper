@@ -601,7 +601,7 @@ const Sync = (function(){
 
 /* ---------------- 導覽列 ---------------- */
 function navBar(active, subtitle){
-  const pages=[['roster.html','角色資料'],['raid.html','副本分團'],['index.html','深淵分隊']];
+  const pages=[['board.html','本週排班'],['roster.html','角色資料'],['raid.html','舊版分團'],['index.html','深淵分隊']];
   const links=pages.map(function(pg){
     return '<a href="'+pg[0]+'" class="'+(pg[0]===active?'on':'')+'">'+pg[1]+'</a>';
   }).join('');
