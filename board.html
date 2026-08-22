@@ -67,7 +67,7 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 .board tr:hover td{background:#1a1a20}
 .board tr.sel td{background:var(--surface)}
 .board tr.clear td{opacity:.45}
-.board tr.top td{border-top:1px solid var(--rule)}   /* 副本之間的分界 */
+.board tr.first td{border-top:1px solid var(--rule)}   /* 副本之間的分界 */
 .board td{border-bottom:1px solid #232329}
 .tno{width:52px;font-family:var(--num);font-size:13px;color:var(--muted);white-space:nowrap}
 .tno b{color:var(--bone);font-weight:600}
@@ -174,8 +174,8 @@ button.on{background:var(--bone);border-color:var(--bone);color:#1a1a1f}
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer"><button class="x" onclick="closeDrawer()">關閉</button><div id="dbody"></div></aside>
 
-<script src="shared.js?v=202608221948"></script>
-<script src="lineup.js?v=202608221948"></script>
+<script src="shared.js?v=202608221952"></script>
+<script src="lineup.js?v=202608221952"></script>
 <script>
 /* ---------------- 狀態 ---------------- */
 let filter = 'open';        // open = 只看這週還沒打完的副本
@@ -295,7 +295,7 @@ function draw(){
           ? chip(p, mine[0].c, d, {done:isCleared(mine[0].c.id,d.key), team:ti})
           : '<span class="empty">·</span>') + '</td>';
       });
-      out += '<tr class="'+(ti===0?'top ':'')+(allDone?'clear ':'')+sel+'" data-row="'+d.key+'">'
+      out += '<tr class="'+(ti===0?'first ':'')+(allDone?'clear ':'')+sel+'" data-row="'+d.key+'">'
         + (ti===0 ? '<td class="dun" rowspan="'+lines+'" data-open="'+d.key+'"><b>'+esc(d.name)+'</b>'
                     + '<em>'+d.size+' 人 · '+L.length+' 團</em></td>' : '')
         + '<td class="tno"><b>'+(ti+1)+'</b></td>'
