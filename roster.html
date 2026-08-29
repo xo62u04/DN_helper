@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>角色資料 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608292235">
+<link rel="stylesheet" href="style.css?v=202608292240">
 <style>
   td.gear select{padding:3px 2px;font-size:14px}
   td.gear input{width:44px;padding:3px 4px;font-size:14px}
@@ -32,6 +32,8 @@
     <div class="row">
       <label>每週重置日</label>
       <select id="resetDay"></select>
+      <input type="number" id="resetHour" min="0" max="23" style="width:64px">
+      <span class="hint">點重置</span>
       <span class="hint">目前週期：<b id="curweek"></b></span>
       <span style="width:20px"></span>
       <label><input type="checkbox" id="useFd"> 戰力算入終傷</label>
@@ -116,7 +118,7 @@
 
 </div>
 
-<script src="shared.js?v=202608292235"></script>
+<script src="shared.js?v=202608292240"></script>
 <script>
 /* ---------- 初始化 ---------- */
 document.getElementById('nav').innerHTML = navBar('roster.html','SEA 經典服 · PC');
@@ -126,6 +128,7 @@ document.getElementById('resetDay').innerHTML =
 
 function syncCfg(){
   document.getElementById('resetDay').value = DB.cfg.resetDay;
+  document.getElementById('resetHour').value = DB.cfg.resetHour ?? 9;
   document.getElementById('useFd').checked  = DB.cfg.useFd;
   document.getElementById('useCrit').checked= DB.cfg.useCrit;
   document.getElementById('critDmg').value  = DB.cfg.critDmg ?? 200;
@@ -133,9 +136,10 @@ function syncCfg(){
   document.getElementById('wPer').value = DB.gear.wPer;
   document.getElementById('aPer').value = DB.gear.aPer;
 }
-['resetDay','useFd','useCrit','critDmg'].forEach(id=>{
+['resetDay','resetHour','useFd','useCrit','critDmg'].forEach(id=>{
   document.getElementById(id).addEventListener('change', e=>{
     if(id==='resetDay')     DB.cfg.resetDay = +e.target.value;
+    else if(id==='resetHour') DB.cfg.resetHour = Math.min(23,Math.max(0,+e.target.value||0));
     else if(id==='critDmg') DB.cfg.critDmg  = Math.max(100, +e.target.value||200);
     else DB.cfg[id] = e.target.checked;
     touchMeta(); saveDB(); syncCfg(); renderRoster();

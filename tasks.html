@@ -149,7 +149,7 @@ function draw(){
 
   document.getElementById('left').innerHTML=(usable-doneN)+'<small>張沒破</small>';
   document.getElementById('week').textContent=
-    curWeek()+' 起 · 每'+WD[DB.cfg.resetDay]+'重置 · 有用的板子 '+usable+' 張、已破 '+doneN;
+    curWeek()+' 起 · 每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 重置 · 有用的板子 '+usable+' 張、已破 '+doneN;
 
   // 統計：各道具 + 每人負擔（上限 6）
   const tot={}; BOARD_ITEMS.forEach(k=>tot[k]={n:0,done:0});
@@ -226,7 +226,7 @@ function draw(){
     '流程：每週刷新後，各自把 6 張板子的獎勵和條件填進來（沒用的選「空」）。'
     +'一張板子可以分享給最多 3 個隊友，同一場一起打、每個人都拿獎勵，但各佔各的每週 6 張額度 —— 超過 6 會標紅。'
     +'下面「照副本看」把還沒破的板子照副本整理好，出發前看一眼，能順路的一次帶掉。'
-    +'每'+WD[DB.cfg.resetDay]+'自動翻新，改動即時同步給全隊。';
+    +'每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 自動翻新，改動即時同步給全隊。';
 }
 
 document.getElementById('tbody').addEventListener('click', function(e){

@@ -72,7 +72,7 @@ const defRole = n => HEALER_JOBS.indexOf(n)>=0 ? '補師'
                     : TANK_JOBS.indexOf(n)>=0   ? '坦' : '輸出';
 
 /* 一次性資料修正。每加一條就把 MIGV 加一，舊存檔載入時會補跑。 */
-const MIGV = 4;
+const MIGV = 5;
 // 把 from 這本的打勾紀錄搬到 to 這本（逐格比時間，跟平常的合併規則一致）
 function moveClears(s, from, to){
   const suf='|'+from;
@@ -141,6 +141,11 @@ function migrate(s){
     s.cfg = s.cfg||{};
     if(s.cfg.resetDay===4 || s.cfg.resetDay==null) s.cfg.resetDay=6;
   }
+  // v5：重置是早上 9 點，不是午夜
+  if(from < 5){
+    s.cfg = s.cfg||{};
+    if(s.cfg.resetHour==null) s.cfg.resetHour=9;
+  }
   s.migv = MIGV;
   return s;
 }
@@ -189,7 +194,7 @@ function defaultDB(){
     gear:{ tiers:[{k:'50S',v:100},{k:'50L',v:130},{k:'60B',v:170},{k:'60A',v:210},{k:'70A',v:260}],
            wPer:12, aPer:5 },
     cfg:{ mode:'save', teamSize:4, minCarry:2, autoFill:true, balance:true,
-          resetDay:6, useFd:true, useCrit:true, sameElem:true,
+          resetDay:6, resetHour:9, useFd:true, useCrit:true, sameElem:true,
           critDmg:200, needHealer:true, needTank:true },
     meta:{ t:0 }
   };
@@ -274,7 +279,11 @@ function touchMeta(){ DB.meta={t:nowMs()}; }
 /* ---------------- 週期（本週打過沒） ---------------- */
 // 伺服器每週固定一天重置，預設週四；可在角色資料頁改。
 function weekStart(date, resetDay){
-  const t = new Date(date||Date.now()); t.setHours(0,0,0,0);
+  const t = new Date(date||Date.now());
+  // 重置在早上 9 點：把時間往回推 9 小時再切日界線，
+  // 週六 08:59 還算上一週、09:00 起算新週
+  t.setHours(t.getHours() - (DB.cfg.resetHour ?? 9));
+  t.setHours(0,0,0,0);
   const back = (t.getDay() - (resetDay??DB.cfg.resetDay) + 7) % 7;
   t.setDate(t.getDate()-back);
   return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
