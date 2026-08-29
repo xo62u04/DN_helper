@@ -58,8 +58,9 @@ button:hover{color:var(--ink);border-color:var(--sub)}
 /* ---- 一列一個人：左邊名字，右邊 6 格 ---- */
 section{padding:0 22px}
 .prow{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid #24242e}
-.pname{width:92px;flex:none;padding-top:8px}
-.pname h2{margin:0;font-size:17px;font-weight:700}
+.pname{width:112px;flex:none;padding-top:8px}
+.pname .who{display:block;font-size:12px;color:var(--sub);margin-bottom:1px}
+.pname h2{margin:0;font-size:16.5px;font-weight:700}
 .pname .st{display:block;font-family:var(--num);font-size:12px;color:var(--sub);margin-top:4px;line-height:1.6}
 .pname .st b{color:var(--bone);font-weight:600}
 .pname .over{display:block;color:var(--alert);font-weight:700;font-size:12.5px;margin-top:2px}
@@ -131,7 +132,7 @@ h3.sec{font-size:15px;font-weight:700;color:var(--sub);margin:26px 22px 8px;
   <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
     <button onclick="Sync.pull().then(draw)"><span class="dot" id="sdot"></span><span id="stxt">同步</span></button>
     <button onclick="clearWeekBoard()">清空本週</button>
-    <span class="week">每人每週 6 張 · 沒用的留著「空」就好 · 一張最多分享 3 人</span>
+    <span class="week">每隻角色每週 6 張 · 沒用的留著「空」就好 · 一張最多分享 3 個隊友</span>
   </div>
 </div>
 
@@ -159,33 +160,34 @@ function itemGhost(pid,i,val){
     +'</select>';
 }
 
-function card(p,b,i){
+function card(r,b,i){
+  const cid=r.c.id;
   if(!b.item){
     // 空板＝安靜的＋方格；隱形選單蓋滿整格，點哪都直接彈選項
-    return '<div class="slot0" title="登記這張板子">＋'+itemGhost(p.id,i,'')+'</div>';
+    return '<div class="slot0" title="登記這張板子">＋'+itemGhost(cid,i,'')+'</div>';
   }
   const ps=people();
   return '<div class="card'+(b.done?' done':'')+'">'
     +'<div class="crow">'
-      +'<span class="iname" title="點名字改獎勵或作廢">'+esc(b.item)+itemGhost(p.id,i,b.item)+'</span>'
-      +'<button class="donebtn'+(b.done?' on':'')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="done">'
+      +'<span class="iname" title="點名字改獎勵或作廢">'+esc(b.item)+itemGhost(cid,i,b.item)+'</span>'
+      +'<button class="donebtn'+(b.done?' on':'')+'" data-p="'+cid+'" data-i="'+i+'" data-f="done">'
         +(b.done?'✓ 破了':'沒破')+'</button>'
     +'</div>'
     +'<div class="crow">'
       +'<span class="seg">'
         +BOARD_CONDS.map(c=>'<button class="'+(c[0]===b.cond?'on ':'')+(c[0]==='timed'?'timed':'')
-          +'" data-p="'+p.id+'" data-i="'+i+'" data-f="cond" data-v="'+c[0]+'">'
+          +'" data-p="'+cid+'" data-i="'+i+'" data-f="cond" data-v="'+c[0]+'">'
           +(c[0]==='timed'?'限時':'一次')+'</button>').join('')
       +'</span>'
-      +'<select style="flex:1" class="'+(b.dun?'':'unset')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="dun">'
+      +'<select style="flex:1" class="'+(b.dun?'':'unset')+'" data-p="'+cid+'" data-i="'+i+'" data-f="dun">'
         +'<option value="">＋選副本</option>'
         +BOARD_DUNS.map(k=>'<option'+(k===b.dun?' selected':'')+'>'+esc(k)+'</option>').join('')
       +'</select>'
     +'</div>'
     +'<div class="shrow">'
-      +ps.filter(x=>x.id!==p.id).map(function(x){
+      +ps.filter(x=>x.id!==r.p.id).map(function(x){
         const on=(b.sh||[]).indexOf(x.id)>=0;
-        return '<button class="shbtn'+(on?' on':'')+'" data-p="'+p.id+'" data-i="'+i
+        return '<button class="shbtn'+(on?' on':'')+'" data-p="'+cid+'" data-i="'+i
           +'" data-f="sh" data-v="'+x.id+'">'+esc(x.name)+'</button>';
       }).join('')
     +'</div>'
@@ -194,13 +196,15 @@ function card(p,b,i){
 
 function draw(){
   const ps=people();
+  const rows=allChars(true);          // 一列一隻角色
   let usable=0, doneN=0;
   const load={}; ps.forEach(p=>load[p.id]={n:0,done:0});
-  ps.forEach(function(p){
-    boardOf(p.id).s.forEach(function(b){
+  rows.forEach(function(r){
+    boardOf(r.c.id).s.forEach(function(b){
       if(!b.item) return;
       usable++; if(b.done) doneN++;
-      [p.id].concat(b.sh||[]).forEach(function(w){ if(load[w]){ load[w].n++; if(b.done) load[w].done++; } });
+      // 持有角色的主人要打一份，分享到的每個成員也各一份
+      [r.p.id].concat(b.sh||[]).forEach(function(w){ if(load[w]){ load[w].n++; if(b.done) load[w].done++; } });
     });
   });
 
@@ -209,32 +213,36 @@ function draw(){
     curWeek()+' 起 · 每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 重置';
 
   const tot={}; BOARD_ITEMS.forEach(k=>tot[k]={n:0,done:0});
-  ps.forEach(p=>boardOf(p.id).s.forEach(b=>{
+  rows.forEach(r=>boardOf(r.c.id).s.forEach(b=>{
     if(!b.item||!tot[b.item]) return;
     const c=1+((b.sh||[]).length);
     tot[b.item].n+=c; if(b.done) tot[b.item].done+=c;
   }));
   const chips=BOARD_ITEMS.filter(k=>tot[k].n)
     .map(k=>'<span class="tchip"><b>'+esc(k)+'</b><span class="n">'+tot[k].done+'/'+tot[k].n+'</span></span>').join('');
+  const pload=ps.filter(p=>load[p.id].n)
+    .map(p=>'<span class="tchip"><b>'+esc(p.name)+' 要打</b><span class="n">'+load[p.id].done+'/'+load[p.id].n+'</span></span>').join('');
   document.getElementById('totals').innerHTML =
-    chips ? '<span class="tlabel">全隊獎勵（含分享的份）</span>'+chips : '';
+    (chips?'<span class="tlabel">全隊獎勵（含分享的份）</span>'+chips:'')
+    +(pload?'<span class="tlabel" style="margin-left:10px">每人負擔</span>'+pload:'');
 
-  document.getElementById('people').innerHTML = '<section>'+ps.map(function(p){
-    const e=boardOf(p.id);
-    const l=load[p.id];
-    return '<div class="prow"><div class="pname"><h2>'+esc(p.name)+'</h2>'
-      +'<span class="st">要打 <b>'+l.n+'</b> 張<br>破了 <b>'+l.done+'</b> 張</span>'
-      +(l.n>BOARD_SLOTS?'<span class="over">超過 6 張</span>':'')
+  document.getElementById('people').innerHTML = '<section>'+rows.map(function(r){
+    const e=boardOf(r.c.id);
+    const own=e.s.filter(b=>b.item).length, dn=e.s.filter(b=>b.item&&b.done).length;
+    return '<div class="prow"><div class="pname">'
+      +'<span class="who">'+esc(r.p.name)+'</span>'
+      +'<h2>'+esc(charLabel(r.p,r.c))+'</h2>'
+      +'<span class="st">登記 <b>'+own+'</b> 張<br>破了 <b>'+dn+'</b> 張</span>'
       +'</div><div class="cards">'
-      + e.s.map((b,i)=>card(p,b,i)).join('')
+      + e.s.map((b,i)=>card(r,b,i)).join('')
       +'</div></div>';
   }).join('')+'</section>';
 
   const byDun={};
-  ps.forEach(function(p){
-    boardOf(p.id).s.forEach(function(b){
+  rows.forEach(function(r){
+    boardOf(r.c.id).s.forEach(function(b){
       if(!b.item || b.done || !b.dun) return;
-      (byDun[b.dun]=byDun[b.dun]||[]).push({owner:p,b:b});
+      (byDun[b.dun]=byDun[b.dun]||[]).push({owner:r,b:b});
     });
   });
   document.getElementById('byrun').innerHTML = BOARD_DUNS.filter(d=>byDun[d]).map(function(d){
@@ -243,14 +251,14 @@ function draw(){
       +list.map(function(x){
         const names=(x.b.sh||[]).map(id=>(people().find(p=>p.id===id)||{}).name).filter(Boolean);
         return '<div class="b"><b>'+esc(x.b.item)+'</b>'
-          +' <span class="own">· '+esc(x.owner.name)+'的</span>'
+          +' <span class="own">· '+esc(x.owner.p.name)+'·'+esc(charLabel(x.owner.p,x.owner.c))+'的</span>'
           +(names.length?' <span class="sh">＋'+esc(names.join('、'))+'</span>':'')
           +(x.b.cond==='timed'?'<span class="timed">限時</span>':'')+'</div>';
       }).join('')+'</div>';
   }).join('') || '<div class="run" style="color:var(--sub)">還沒有待破的板子 —— 上面把刷到的填進來，這裡會照副本整理好。</div>';
 
   document.getElementById('foot').innerHTML=
-    '填法：每張卡選獎勵就算登記了，再點「一次／限時」和副本。'
+    '每隻角色每週刷 6 張。填法：每張卡選獎勵就算登記了，再點「一次／限時」和副本。'
     +'分享點隊友名字（藍色＝已分享，最多 3 人，一起打大家都拿，各佔各的 6 張額度）。'
     +'打完按「沒破」變「✓ 破了」。每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 自動翻新，即時同步全隊。';
 }
@@ -284,9 +292,9 @@ document.getElementById('people').addEventListener('change', function(e){
 });
 
 function clearWeekBoard(){
-  if(!confirm('清空本週所有人的板子？（會同步給全隊）')) return;
+  if(!confirm('清空本週所有角色的板子？（會同步給全隊）')) return;
   DB.board[curWeek()]={};
-  people().forEach(p=>{ boardOf(p.id).t=nowMs(); });
+  allChars(true).forEach(r=>{ boardOf(r.c.id).t=nowMs(); });
   saveDB(); draw();
 }
 

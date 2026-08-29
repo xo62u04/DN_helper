@@ -22,7 +22,7 @@ const BUFF_RES  = ELEMS.filter(e=>e!=='無').map(e=>'降'+e+'抗');
 const BUFF_NUM  = ['增傷','加三維'].concat(BUFF_RES, ['降爆抗','增加屬攻','增加物攻']);
 const BUFF_FLAG = ['爆擊','破防','回血','護盾','復活','解控','加速'];
 const BOARD_ITEMS = ['懸賞','花冠','刻印飾品','刻印防具','刻印三套件','刻印武器','刻印藥水'];
-const BOARD_SLOTS = 6;        // 每人每週刷 6 張板子，也最多破 6 張
+const BOARD_SLOTS = 6;        // 每隻角色每週刷 6 張板子
 const BOARD_CONDS = [['once','通關一次'],['timed','限時通關']];
 // 板子條件裡的副本跟分團那邊的清單不同（有核心/經典/地獄變體），自成一份
 const BOARD_DUNS  = ['地獄K','海龍','綠龍','沙龍','颱風金','颱風金地獄','海龍核心',
@@ -186,8 +186,8 @@ function defaultDB(){
       {key:'desert',  name:'沙龍',        size:8, req:0},
     ],
     removed:[],          // 手動刪掉的副本 key，預設清單不要再把它補回來
-    board:{},            // 板子：{ 週期: { personId: {s:[6張{item,cond,dun,to,done}], t} } }
-                         // item 空字串＝沒用的板子；to＝分享給誰打（空＝自己）
+    board:{},            // 板子：{ 週期: { charId: {s:[6張{item,cond,dun,sh,done}], t} } }
+                         // item 空字串＝沒用的板子；sh＝分享給哪些成員（最多3人）
     deleted:[],          // 刪除墓碑 [{name,t}]：沒有這個，刪掉的成員會被雲端同步合併回來
     migv:MIGV,           // 已套用到第幾版的資料修正
     clears:{},   // { 週期起始日: { "charId|dungeonKey": true } }
