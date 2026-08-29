@@ -6,87 +6,104 @@
 <title>板子任務 — DN Helper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-/* 板子分配：每人每週刷 6 張，各有條件/獎勵，可以分享給別人打。
-   上半是每個人的板子庫存，下半照副本彙整——排副本行程時看一眼就知道
-   這趟能順便破掉哪些板子。 */
+/* ===================================================================
+   板子任務 v3
+   一張板子＝一張卡，不是表格列。空板縮成小虛線卡不佔注意力，
+   有用的板子才展開成完整卡片。
+   顏色紀律：內文一律亮字、標籤一種灰、數字米白；
+   紅只給「限時／超額」、藍只給「分享」，其他一律不上色。
+   =================================================================== */
 :root{
-  --ground:#15151a; --surface:#1d1d24; --raised:#26262f; --rule:#34343f;
-  --ink:#eceaf2; --muted:#8d8a99; --bone:#e3d9c2; --done:#575c68;
-  --fire:#ff7a45; --water:#45b8ff; --alert:#ff4d4d;
-  --ui:"Archivo Narrow","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --ground:#141419; --surface:#1e1e26; --raised:#282833; --rule:#34343f;
+  --ink:#ecebf1; --sub:#a7a4b3; --faint:#5b5f6b; --bone:#e3d9c2;
+  --fire:#ff7a45; --water:#52b9ff; --alert:#ff5252;
+  --ui:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
   --num:"IBM Plex Mono",ui-monospace,monospace;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--ui);font-size:15px}
-body{padding-bottom:30vh}
+body{padding-bottom:25vh}
 a{color:var(--bone)}
 :focus-visible{outline:2px solid var(--bone);outline-offset:2px}
 
+/* ---- 頂 ---- */
 .top{position:sticky;top:0;z-index:30;background:var(--ground);
-     border-bottom:1px solid var(--rule);padding:14px 22px 12px}
-.top-row{display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap}
-.brand{font-weight:700;font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
-.left{font-family:var(--num);font-size:40px;font-weight:600;line-height:1;color:var(--bone)}
-.left small{font-family:var(--ui);font-size:15px;font-weight:600;color:var(--muted);margin-left:10px}
-.week{font-size:14px;color:var(--muted)}
+     border-bottom:1px solid var(--rule);padding:12px 22px}
+.top-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--sub)}
+.left{font-family:var(--num);font-size:34px;font-weight:600;line-height:1;color:var(--bone)}
+.left small{font-family:var(--ui);font-size:14px;font-weight:500;color:var(--sub);margin-left:8px}
+.week{font-size:13.5px;color:var(--sub)}
 .grow{flex:1}
 nav{display:flex;gap:2px}
-nav a{padding:7px 14px;text-decoration:none;color:var(--muted);font-size:15px;
+nav a{padding:6px 13px;text-decoration:none;color:var(--sub);font-size:15px;
       font-weight:600;border-bottom:2px solid transparent}
 nav a:hover{color:var(--ink)}
 nav a.on{color:var(--bone);border-bottom-color:var(--bone)}
 button{font-family:var(--ui);font-size:14px;font-weight:600;background:transparent;
-       color:var(--muted);border:1px solid var(--rule);padding:6px 13px;cursor:pointer;border-radius:3px}
-button:hover{color:var(--ink);border-color:var(--muted)}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--done);display:inline-block;margin-right:7px}
+       color:var(--sub);border:1px solid var(--rule);padding:5px 12px;cursor:pointer;border-radius:4px}
+button:hover{color:var(--ink);border-color:var(--sub)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--faint);display:inline-block;margin-right:6px}
 .dot.live{background:var(--bone)} .dot.busy{background:var(--water)} .dot.dirty{background:var(--fire)}
 
-h2{font-size:16px;font-weight:600;color:var(--muted);margin:22px 0 8px;padding:0 22px}
-.wrapx{padding:0 22px}
-.tblwrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th{font-weight:600;font-size:13.5px;color:var(--muted);text-align:left;
-   padding:8px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
-td{border-bottom:1px solid #232329;padding:5px 10px;vertical-align:middle}
-tr:hover td{background:#1a1a20}
-tr.first td{border-top:1px solid var(--rule)}
-tr.trash td{opacity:.35}
-tr.done td{opacity:.5}
-tr.done .cond{text-decoration:line-through}
-.owner{white-space:nowrap;font-weight:600;vertical-align:top;padding-top:10px}
-.owner .quota{display:block;font-family:var(--num);font-size:11px;color:var(--muted);margin-top:2px}
-.idx{width:30px;font-family:var(--num);font-size:12px;color:var(--muted)}
-select{background:var(--surface);color:var(--ink);border:1px solid var(--rule);
-       border-radius:3px;padding:4px 6px;font-family:var(--ui);font-size:14px}
-select.empty{color:var(--muted)}
-.chk{width:17px;height:17px;accent-color:#e3d9c2;cursor:pointer;vertical-align:middle}
-.shbtn{font-size:12.5px;padding:2px 8px;margin:1px 2px 1px 0;border:1px solid var(--rule);
-       border-radius:3px;background:transparent;color:var(--muted);cursor:pointer}
+/* ---- 道具合計：一排小膠囊 ---- */
+.totals{display:flex;gap:8px;flex-wrap:wrap;padding:12px 22px 0;align-items:center}
+.tchip{border:1px solid var(--rule);border-radius:4px;padding:5px 11px;font-size:14px}
+.tchip b{font-weight:600}
+.tchip .n{font-family:var(--num);color:var(--bone);margin-left:7px}
+.tlabel{font-size:13px;color:var(--sub)}
+
+/* ---- 每人一段 ---- */
+section{padding:6px 22px 0}
+.phead{display:flex;align-items:baseline;gap:14px;margin:16px 0 8px;flex-wrap:wrap}
+.phead h2{margin:0;font-size:18px;font-weight:700}
+.phead .st{font-family:var(--num);font-size:13px;color:var(--sub)}
+.phead .st b{color:var(--bone);font-weight:600}
+.phead .over{color:var(--alert);font-weight:700;font-size:13.5px}
+.cards{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---- 板子卡 ---- */
+.card{width:250px;border:1px solid var(--rule);border-radius:6px;background:var(--surface);
+      padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.card.empty{background:transparent;border-style:dashed;justify-content:center;min-height:112px;width:158px}
+.card.empty select{width:100%}
+.card.done{opacity:.45}
+.card.done .iname{text-decoration:line-through}
+.crow{display:flex;align-items:center;gap:8px}
+.iname{font-size:16px;font-weight:700;flex:1}
+select{background:var(--raised);color:var(--ink);border:1px solid var(--rule);
+       border-radius:4px;padding:5px 7px;font-family:var(--ui);font-size:14px;max-width:100%}
+select.small{font-size:12.5px;color:var(--sub);padding:2px 5px;background:transparent}
+/* 一次／限時：兩段切換 */
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:4px;overflow:hidden;flex:none}
+.seg button{border:0;border-radius:0;padding:4px 10px;font-size:13px;color:var(--sub)}
+.seg button.on{background:var(--raised);color:var(--ink)}
+.seg button.on.timed{color:var(--fire)}
+/* 分享：點名字 */
+.shrow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-height:26px}
+.shlabel{font-size:12.5px;color:var(--faint)}
+.shbtn{font-size:13px;padding:2px 9px;border-radius:99px}
 .shbtn.on{color:var(--water);border-color:var(--water)}
-.shbtn:hover{color:var(--ink)}
+/* 破了 */
+.donebtn{padding:4px 11px;font-size:13.5px;flex:none}
+.donebtn.on{color:var(--ground);background:var(--bone);border-color:var(--bone)}
 
-/* 統計卡 */
-.totals{display:flex;gap:10px;flex-wrap:wrap;padding:12px 22px 0}
-.tot{border:1px solid var(--rule);border-radius:3px;padding:7px 12px;min-width:92px}
-.tot b{display:block;font-size:13.5px;font-weight:600}
-.tot .n{font-family:var(--num);font-size:19px;color:var(--bone)}
-.tot .n small{font-size:12px;color:var(--muted)}
-.tot.load b{color:var(--muted)}
-.tot.load.over{border-color:var(--alert)}
-.tot.load.over .n{color:var(--alert)}
-
-/* 照副本彙整 */
-.byrun{padding:0 22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
-.run{border:1px solid var(--rule);border-radius:3px;padding:10px 12px}
-.run h3{margin:0 0 6px;font-size:15px;font-weight:600;display:flex;justify-content:space-between}
-.run h3 span{font-family:var(--num);font-size:12px;color:var(--muted)}
-.run .b{font-size:13.5px;color:var(--muted);padding:2px 0;line-height:1.5}
-.run .b b{color:var(--ink);font-weight:600}
-.run .b .timed{color:var(--fire);font-size:12px}
-.foot{padding:16px 22px;color:var(--muted);font-size:13px;line-height:1.8}
-@media(max-width:900px){ .left{font-size:30px} }
+/* ---- 照副本看 ---- */
+h3.sec{font-size:15px;font-weight:700;color:var(--sub);margin:26px 22px 8px;
+       padding-top:16px;border-top:1px solid var(--rule)}
+.byrun{padding:0 22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
+.run{border:1px solid var(--rule);border-radius:6px;padding:11px 13px;background:var(--surface)}
+.run h4{margin:0 0 7px;font-size:16px;font-weight:700;display:flex;justify-content:space-between}
+.run h4 span{font-family:var(--num);font-size:12.5px;color:var(--sub);font-weight:400}
+.run .b{font-size:14px;padding:2.5px 0;line-height:1.55}
+.run .b .own{color:var(--sub)}
+.run .b .sh{color:var(--water)}
+.run .b .timed{color:var(--fire);font-size:12.5px;border:1px solid var(--fire);
+               border-radius:3px;padding:0 5px;margin-left:5px}
+.foot{padding:18px 22px;color:var(--sub);font-size:13.5px;line-height:1.9}
+@media(max-width:620px){ .card{width:100%} .card.empty{width:100%;min-height:64px} }
 </style>
 </head>
 <body>
@@ -94,27 +111,22 @@ select.empty{color:var(--muted)}
 <div class="top">
   <div class="top-row">
     <span class="brand">DN Helper</span>
-    <div><div class="left" id="left">—</div></div>
+    <div class="left" id="left">—</div>
     <div class="week" id="week"></div>
     <span class="grow"></span>
     <nav id="nav"></nav>
   </div>
-  <div style="display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap">
+  <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
     <button onclick="Sync.pull().then(draw)"><span class="dot" id="sdot"></span><span id="stxt">同步</span></button>
-    <button onclick="clearWeekBoard()">清空本週板子</button>
-    <span class="week">獎勵選「空」＝沒用；點名字把板子分享出去（一張最多 3 人，一起打大家都拿）</span>
+    <button onclick="clearWeekBoard()">清空本週</button>
+    <span class="week">每人每週 6 張 · 沒用的留著「空」就好 · 一張最多分享 3 人</span>
   </div>
 </div>
 
 <div class="totals" id="totals"></div>
+<div id="people"></div>
 
-<h2>板子庫存（每人 6 張）</h2>
-<div class="wrapx"><div class="tblwrap"><table>
-  <thead><tr><th>持有人</th><th></th><th>獎勵</th><th>條件</th><th>副本</th><th>分享給（最多 3 人）</th><th>破了</th></tr></thead>
-  <tbody id="tbody"></tbody>
-</table></div></div>
-
-<h2>照副本看 —— 這趟能順便破哪些板子</h2>
+<h3 class="sec">照副本看 —— 出發前看這裡，順路一次帶掉</h3>
 <div class="byrun" id="byrun"></div>
 
 <div class="foot" id="foot"></div>
@@ -127,139 +139,141 @@ document.getElementById('nav').innerHTML =
 
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
 const people = () => DB.people.filter(p=>p.active);
-const condLabel = c => c==='timed' ? '限時通關' : '通關一次';
+
+function itemSelect(pid,i,val,cls){
+  return '<select class="'+(cls||'')+'" data-p="'+pid+'" data-i="'+i+'" data-f="item">'
+    +'<option value="">'+(val?'改成空（作廢）':'空板子 — 刷到什麼？')+'</option>'
+    +BOARD_ITEMS.map(k=>'<option'+(k===val?' selected':'')+'>'+esc(k)+'</option>').join('')
+    +'</select>';
+}
+
+function card(p,b,i){
+  if(!b.item){
+    return '<div class="card empty">'+itemSelect(p.id,i,'')+'</div>';
+  }
+  const ps=people();
+  return '<div class="card'+(b.done?' done':'')+'">'
+    +'<div class="crow">'
+      +'<span class="iname">'+esc(b.item)+'</span>'
+      +'<button class="donebtn'+(b.done?' on':'')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="done">'
+        +(b.done?'✓ 破了':'沒破')+'</button>'
+    +'</div>'
+    +'<div class="crow">'
+      +'<span class="seg">'
+        +BOARD_CONDS.map(c=>'<button class="'+(c[0]===b.cond?'on ':'')+(c[0]==='timed'?'timed':'')
+          +'" data-p="'+p.id+'" data-i="'+i+'" data-f="cond" data-v="'+c[0]+'">'
+          +(c[0]==='timed'?'限時':'一次')+'</button>').join('')
+      +'</span>'
+      +'<select style="flex:1" data-p="'+p.id+'" data-i="'+i+'" data-f="dun">'
+        +'<option value="">選副本…</option>'
+        +BOARD_DUNS.map(k=>'<option'+(k===b.dun?' selected':'')+'>'+esc(k)+'</option>').join('')
+      +'</select>'
+    +'</div>'
+    +'<div class="shrow"><span class="shlabel">分享</span>'
+      +ps.filter(x=>x.id!==p.id).map(function(x){
+        const on=(b.sh||[]).indexOf(x.id)>=0;
+        return '<button class="shbtn'+(on?' on':'')+'" data-p="'+p.id+'" data-i="'+i
+          +'" data-f="sh" data-v="'+x.id+'">'+esc(x.name)+'</button>';
+      }).join('')
+    +'</div>'
+    +'<div class="crow">'+itemSelect(p.id,i,b.item,'small')+'</div>'
+  +'</div>';
+}
 
 function draw(){
   const ps=people();
   let usable=0, doneN=0;
-  const load={};                       // 每個人被分到幾張（to 空＝持有人自己）
-  ps.forEach(p=>load[p.id]={name:p.name, n:0, done:0});
-
+  const load={}; ps.forEach(p=>load[p.id]={n:0,done:0});
   ps.forEach(function(p){
     boardOf(p.id).s.forEach(function(b){
-      if(!b.item) return;              // 空的＝沒用
-      usable++;
-      if(b.done) doneN++;
-      // 持有人自己吃一份，分享到的每個人也各吃一份（各佔各的每週 6 張額度）
-      [p.id].concat(b.sh||[]).forEach(function(who){
-        if(load[who]){ load[who].n++; if(b.done) load[who].done++; }
-      });
+      if(!b.item) return;
+      usable++; if(b.done) doneN++;
+      [p.id].concat(b.sh||[]).forEach(function(w){ if(load[w]){ load[w].n++; if(b.done) load[w].done++; } });
     });
   });
 
   document.getElementById('left').innerHTML=(usable-doneN)+'<small>張沒破</small>';
   document.getElementById('week').textContent=
-    curWeek()+' 起 · 每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 重置 · 有用的板子 '+usable+' 張、已破 '+doneN;
+    curWeek()+' 起 · 每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 重置';
 
-  // 統計：各道具 + 每人負擔（上限 6）
   const tot={}; BOARD_ITEMS.forEach(k=>tot[k]={n:0,done:0});
   ps.forEach(p=>boardOf(p.id).s.forEach(b=>{
     if(!b.item||!tot[b.item]) return;
-    const copies=1+((b.sh||[]).length);
-    tot[b.item].n+=copies; if(b.done) tot[b.item].done+=copies;
+    const c=1+((b.sh||[]).length);
+    tot[b.item].n+=c; if(b.done) tot[b.item].done+=c;
   }));
+  const chips=BOARD_ITEMS.filter(k=>tot[k].n)
+    .map(k=>'<span class="tchip"><b>'+esc(k)+'</b><span class="n">'+tot[k].done+'/'+tot[k].n+'</span></span>').join('');
   document.getElementById('totals').innerHTML =
-    BOARD_ITEMS.filter(k=>tot[k].n).map(k=>
-      '<div class="tot"><b>'+esc(k)+'</b><span class="n">'+tot[k].done+'<small> / '+tot[k].n+'</small></span></div>'
-    ).join('')
-    + ps.map(p=>{
-        const l=load[p.id];
-        return '<div class="tot load'+(l.n>BOARD_SLOTS?' over':'')+'"><b>'+esc(p.name)+' 要打</b>'
-          +'<span class="n">'+l.done+'<small> / '+l.n+(l.n>BOARD_SLOTS?' 超過6!':'')+'</small></span></div>';
-      }).join('');
+    chips ? '<span class="tlabel">全隊獎勵（含分享的份）</span>'+chips : '';
 
-  // 庫存表
-  const shareBtns = (b,self,pid,i) => ps.filter(p=>p.id!==self).map(function(p){
-    const on=(b.sh||[]).indexOf(p.id)>=0;
-    return '<button class="shbtn'+(on?' on':'')+'" data-p="'+pid+'" data-i="'+i+'" data-sh="'+p.id+'">'
-      +esc(p.name)+'</button>';
-  }).join('');
-  document.getElementById('tbody').innerHTML = ps.map(function(p){
+  document.getElementById('people').innerHTML = ps.map(function(p){
     const e=boardOf(p.id);
-    return e.s.map(function(b,i){
-      const trash=!b.item;
-      return '<tr class="'+(i===0?'first ':'')+(trash?'trash ':'')+(b.item&&b.done?'done':'')+'">'
-        +(i===0?'<td class="owner" rowspan="'+BOARD_SLOTS+'">'+esc(p.name)
-               +'<span class="quota">刷新 6 張/週</span></td>':'')
-        +'<td class="idx">'+(i+1)+'</td>'
-        +'<td><select class="'+(b.item?'':'empty')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="item">'
-          +'<option value="">空（沒用）</option>'
-          +BOARD_ITEMS.map(k=>'<option'+(k===b.item?' selected':'')+'>'+esc(k)+'</option>').join('')
-          +'</select></td>'
-        +(trash
-          ? '<td colspan="4" style="color:#33333c;font-size:13px">— 沒用的板子 —</td>'
-          : '<td class="cond"><select data-p="'+p.id+'" data-i="'+i+'" data-f="cond">'
-              +BOARD_CONDS.map(c=>'<option value="'+c[0]+'"'+(c[0]===b.cond?' selected':'')+'>'+c[1]+'</option>').join('')
-              +'</select></td>'
-            +'<td><select class="'+(b.dun?'':'empty')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="dun">'
-              +'<option value="">—</option>'
-              +BOARD_DUNS.map(k=>'<option'+(k===b.dun?' selected':'')+'>'+esc(k)+'</option>').join('')
-              +'</select></td>'
-            +'<td>'+shareBtns(b,p.id,p.id,i)+'</td>'
-            +'<td><input type="checkbox" class="chk" '+(b.done?'checked':'')
-              +' data-p="'+p.id+'" data-i="'+i+'" data-f="done"></td>')
-        +'</tr>';
-    }).join('');
+    const l=load[p.id];
+    return '<section><div class="phead"><h2>'+esc(p.name)+'</h2>'
+      +'<span class="st">要打 <b>'+l.n+'</b> 張 · 破了 <b>'+l.done+'</b></span>'
+      +(l.n>BOARD_SLOTS?'<span class="over">超過每週 6 張上限</span>':'')
+      +'</div><div class="cards">'
+      + e.s.map((b,i)=>card(p,b,i)).join('')
+      +'</div></section>';
   }).join('');
 
-  // 照副本彙整：還沒破的板子照條件副本分組
   const byDun={};
   ps.forEach(function(p){
     boardOf(p.id).s.forEach(function(b){
       if(!b.item || b.done || !b.dun) return;
-      (byDun[b.dun]=byDun[b.dun]||[]).push({owner:p, b:b});
+      (byDun[b.dun]=byDun[b.dun]||[]).push({owner:p,b:b});
     });
   });
   document.getElementById('byrun').innerHTML = BOARD_DUNS.filter(d=>byDun[d]).map(function(d){
     const list=byDun[d];
-    return '<div class="run"><h3>'+esc(d)+'<span>'+list.length+' 張</span></h3>'
-      + list.map(function(x){
-          const names=(x.b.sh||[]).map(id=>(people().find(p=>p.id===id)||{}).name).filter(Boolean);
-          return '<div class="b"><b>'+esc(x.b.item)+'</b> · '+esc(x.owner.name)+'的'
-            +(names.length?'，分享給 <b>'+esc(names.join('、'))+'</b>':'')
-            +(x.b.cond==='timed'?' <span class="timed">限時</span>':'')+'</div>';
-        }).join('')
-      + '</div>';
-  }).join('') || '<div class="run" style="color:var(--muted)">還沒有待破的板子。把上面每個人刷到的板子填進來，這裡就會照副本整理好。</div>';
+    return '<div class="run"><h4>'+esc(d)+'<span>'+list.length+' 張</span></h4>'
+      +list.map(function(x){
+        const names=(x.b.sh||[]).map(id=>(people().find(p=>p.id===id)||{}).name).filter(Boolean);
+        return '<div class="b"><b>'+esc(x.b.item)+'</b>'
+          +' <span class="own">· '+esc(x.owner.name)+'的</span>'
+          +(names.length?' <span class="sh">＋'+esc(names.join('、'))+'</span>':'')
+          +(x.b.cond==='timed'?'<span class="timed">限時</span>':'')+'</div>';
+      }).join('')+'</div>';
+  }).join('') || '<div class="run" style="color:var(--sub)">還沒有待破的板子 —— 上面把刷到的填進來，這裡會照副本整理好。</div>';
 
   document.getElementById('foot').innerHTML=
-    '流程：每週刷新後，各自把 6 張板子的獎勵和條件填進來（沒用的選「空」）。'
-    +'一張板子可以分享給最多 3 個隊友，同一場一起打、每個人都拿獎勵，但各佔各的每週 6 張額度 —— 超過 6 會標紅。'
-    +'下面「照副本看」把還沒破的板子照副本整理好，出發前看一眼，能順路的一次帶掉。'
-    +'每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 自動翻新，改動即時同步給全隊。';
+    '填法：每張卡選獎勵就算登記了，再點「一次／限時」和副本。'
+    +'分享點隊友名字（藍色＝已分享，最多 3 人，一起打大家都拿，各佔各的 6 張額度）。'
+    +'打完按「沒破」變「✓ 破了」。每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 自動翻新，即時同步全隊。';
 }
 
-document.getElementById('tbody').addEventListener('click', function(e){
-  const b=e.target.closest('.shbtn'); if(!b) return;
-  const pid=b.dataset.p, i=+b.dataset.i, who=b.dataset.sh;
-  const slot=boardOf(pid).s[i];
-  const sh=(slot.sh||[]).slice();
-  const at=sh.indexOf(who);
-  if(at>=0) sh.splice(at,1);
-  else{
-    if(sh.length>=BOARD_SHARE_MAX){ alert('一張板子最多分享給 '+BOARD_SHARE_MAX+' 個人。'); return; }
-    sh.push(who);
-  }
-  setBoardSlot(pid,i,{sh:sh});
+document.getElementById('people').addEventListener('click', function(e){
+  const t=e.target.closest('button'); if(!t) return;
+  const pid=t.dataset.p, i=+t.dataset.i, f=t.dataset.f;
+  if(!pid||!f) return;
+  if(f==='done'){ const b=boardOf(pid).s[i]; setBoardSlot(pid,i,{done:!b.done}); }
+  else if(f==='cond'){ setBoardSlot(pid,i,{cond:t.dataset.v}); }
+  else if(f==='sh'){
+    const sh=(boardOf(pid).s[i].sh||[]).slice();
+    const at=sh.indexOf(t.dataset.v);
+    if(at>=0) sh.splice(at,1);
+    else{ if(sh.length>=BOARD_SHARE_MAX){ alert('一張板子最多分享給 '+BOARD_SHARE_MAX+' 個人。'); return; }
+          sh.push(t.dataset.v); }
+    setBoardSlot(pid,i,{sh:sh});
+  } else return;
   draw();
 });
-document.getElementById('tbody').addEventListener('change', function(e){
-  const t=e.target, pid=t.dataset.p, i=+t.dataset.i, f=t.dataset.f;
-  if(!pid||f===undefined) return;
-  if(f==='done') setBoardSlot(pid,i,{done:t.checked});
-  else if(f==='item'){
+document.getElementById('people').addEventListener('change', function(e){
+  const t=e.target; if(t.tagName!=='SELECT') return;
+  const pid=t.dataset.p, i=+t.dataset.i, f=t.dataset.f;
+  if(!pid||!f) return;
+  if(f==='item'){
     const patch={item:t.value};
-    if(!t.value) Object.assign(patch,{dun:'',sh:[],done:false,cond:'once'});   // 改回空的順便清乾淨
+    if(!t.value) Object.assign(patch,{dun:'',sh:[],done:false,cond:'once'});
     setBoardSlot(pid,i,patch);
-  }
-  else setBoardSlot(pid,i,{[f]:t.value});
+  }else setBoardSlot(pid,i,{[f]:t.value});
   draw();
 });
 
 function clearWeekBoard(){
   if(!confirm('清空本週所有人的板子？（會同步給全隊）')) return;
-  const w=curWeek();
-  DB.board[w]={};
+  DB.board[curWeek()]={};
   people().forEach(p=>{ boardOf(p.id).t=nowMs(); });
   saveDB(); draw();
 }
