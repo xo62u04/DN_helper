@@ -21,6 +21,8 @@ const DPS_COEF = {'護士':0.75, '光輝':0.40, '聖徒':0.25, '毀滅':0.60, '�
 const BUFF_RES  = ELEMS.filter(e=>e!=='無').map(e=>'降'+e+'抗');
 const BUFF_NUM  = ['增傷','加三維'].concat(BUFF_RES, ['降爆抗','增加屬攻','增加物攻']);
 const BUFF_FLAG = ['爆擊','破防','回血','護盾','復活','解控','加速'];
+const BOARD_ITEMS = ['懸賞','花冠','刻印飾品','刻印防具','刻印三套件','刻印武器','刻印藥水'];
+const BOARD_RUNS  = 5;        // 每隻角色每週五場
 const BUFF_OLD  = ['降抗'];          // 舊資料寫過的籠統標籤，還認得但不再提供新增
 const BUFFTAGS  = BUFF_NUM.concat(BUFF_FLAG);
 const isNumBuff = k => BUFF_NUM.indexOf(k)>=0 || BUFF_OLD.indexOf(k)>=0;
@@ -169,6 +171,8 @@ function defaultDB(){
       {key:'desert',  name:'沙龍',        size:8, req:0},
     ],
     removed:[],          // 手動刪掉的副本 key，預設清單不要再把它補回來
+    board:{},            // 板子任務：{ 週期: { charId: {v:[五場的道具], d:[五場打完沒], t:改動時間} } }
+    deleted:[],          // 刪除墓碑 [{name,t}]：沒有這個，刪掉的成員會被雲端同步合併回來
     migv:MIGV,           // 已套用到第幾版的資料修正
     clears:{},   // { 週期起始日: { "charId|dungeonKey": true } }
     gear:{ tiers:[{k:'50S',v:100},{k:'50L',v:130},{k:'60B',v:170},{k:'60A',v:210},{k:'70A',v:260}],
@@ -221,6 +225,8 @@ function mergeDefaults(s){
   const ord={}; d.dungeons.forEach((x,i)=>{ ord[x.key]=i; });
   s.dungeons.sort((a,b)=>(ord[a.key]==null?999:ord[a.key])-(ord[b.key]==null?999:ord[b.key]));
   s.clears   = s.clears && typeof s.clears==='object' ? s.clears : {};
+  s.board    = s.board  && typeof s.board ==='object' ? s.board  : {};
+  s.deleted  = Array.isArray(s.deleted) ? s.deleted.filter(x=>x&&x.name) : [];
   s.gear     = s.gear&&Array.isArray(s.gear.tiers)&&s.gear.tiers.length ? s.gear : d.gear;
   s.cfg      = Object.assign(d.cfg, s.cfg||{});
   s.meta     = s.meta && typeof s.meta==='object' ? s.meta : {t:0};
@@ -289,23 +295,51 @@ function resetWeek(week){
 // 通關格子：逐格比 t。這樣兩個人同時在改也不會互相蓋掉。
 const nowMs = () => Date.now();
 function touchPerson(p){ if(p) p.t = nowMs(); }
+// 刪成員一定要走這個：記墓碑，否則下一次同步雲端那份會把他合併回來
+function deletePerson(p){
+  DB.people = DB.people.filter(x=>x!==p);
+  DB.deleted = (DB.deleted||[]).filter(x=>x.name!==p.name);
+  DB.deleted.push({name:p.name, t:nowMs()});
+}
+const tombOf = (list,name) => { const x=(list||[]).find(t=>t.name===name); return x? (x.t||0) : 0; };
 function mergeDB(remote, local){
   const R=mergeDefaults(JSON.parse(JSON.stringify(remote)));
   const out=JSON.parse(JSON.stringify(local));
 
-  // 成員
+  // 墓碑：兩邊聯集，同名取比較晚的
+  out.deleted = out.deleted||[];
+  (R.deleted||[]).forEach(function(rt){
+    const i=out.deleted.findIndex(x=>x.name===rt.name);
+    if(i<0) out.deleted.push(rt);
+    else if((rt.t||0)>(out.deleted[i].t||0)) out.deleted[i]=rt;
+  });
+
+  // 成員：墓碑比這個人的最後改動晚 → 他是被刪的，不合併回來；
+  // 之後重新加同名成員（t 比墓碑新）就正常活著
   const byName={};
   out.people.forEach(p=>byName[p.name]=p);
   R.people.forEach(function(rp){
+    if(tombOf(out.deleted, rp.name) > (rp.t||0)) return;
     const lp=byName[rp.name];
     if(!lp){ out.people.push(rp); return; }
     if((rp.t||0) > (lp.t||0)) out.people[out.people.indexOf(lp)]=rp;
   });
+  out.people = out.people.filter(p => tombOf(out.deleted, p.name) <= (p.t||0));
 
   // 職業庫 / 副本 / 裝等 / 設定：整份取比較新的
   const rt=(remote.meta&&remote.meta.t)||0, lt=(local.meta&&local.meta.t)||0;
   if(rt>lt){ out.jobs=R.jobs; out.dungeons=R.dungeons; out.gear=R.gear; out.cfg=R.cfg;
              out.meta={t:rt}; }
+
+  // 板子任務：逐角色取比較新的
+  out.board = out.board||{};
+  Object.keys(R.board||{}).forEach(function(w){
+    out.board[w]=out.board[w]||{};
+    Object.keys(R.board[w]).forEach(function(cid){
+      const re=R.board[w][cid], le=out.board[w][cid];
+      if(!le || (re.t||0)>(le.t||0)) out.board[w][cid]=re;
+    });
+  });
 
   // 通關紀錄：逐格取比較新的
   out.clears=out.clears||{};
@@ -406,6 +440,19 @@ function coefOf(c){
 }
 const effPowerOf = c => Math.round(powerOf(c) * coefOf(c));
 
+/* ---------------- 板子任務（每角色每週五場） ---------------- */
+function boardOf(cid, week){
+  const w=week||curWeek();
+  DB.board=DB.board||{}; DB.board[w]=DB.board[w]||{};
+  let e=DB.board[w][cid];
+  if(!e){ e=DB.board[w][cid]={v:Array(BOARD_RUNS).fill(''), d:Array(BOARD_RUNS).fill(false), t:0}; }
+  while(e.v.length<BOARD_RUNS) e.v.push('');
+  while(e.d.length<BOARD_RUNS) e.d.push(false);
+  return e;
+}
+function setBoardItem(cid, i, item){ const e=boardOf(cid); e.v[i]=item; e.t=nowMs(); saveDB(); }
+function setBoardDone(cid, i, v){ const e=boardOf(cid); e.d[i]=!!v; e.t=nowMs(); saveDB(); }
+
 /* ---------------- 匯出 / 匯入 ---------------- */
 const packChar = c => ({name:c.name, job:c.job, elem:c.elem, carry:c.carry, active:c.active,
   atk:c.atk, crit:c.crit, def:c.def, fd:c.fd, ea:c.ea,
@@ -416,7 +463,8 @@ const packPerson = p => ({name:p.name, active:p.active, free:p.free, potion:p.po
 function exportJSON(){
   return JSON.stringify({people:DB.people.map(packPerson), jobs:DB.jobs,
     dungeons:DB.dungeons, removed:DB.removed||[], migv:DB.migv||MIGV,
-    clears:DB.clears, gear:DB.gear, cfg:DB.cfg,
+    clears:DB.clears, board:DB.board||{}, deleted:DB.deleted||[],
+    gear:DB.gear, cfg:DB.cfg,
     meta:DB.meta||{t:0}}, null, 2);
 }
 function importJSON(txt){
@@ -604,7 +652,7 @@ const Sync = (function(){
 
 /* ---------------- 導覽列 ---------------- */
 function navBar(active, subtitle){
-  const pages=[['board.html','本週排班'],['roster.html','角色資料'],['raid.html','舊版分團'],['index.html','深淵分隊']];
+  const pages=[['board.html','本週排班'],['tasks.html','板子任務'],['roster.html','角色資料'],['raid.html','舊版分團'],['index.html','深淵分隊']];
   const links=pages.map(function(pg){
     return '<a href="'+pg[0]+'" class="'+(pg[0]===active?'on':'')+'">'+pg[1]+'</a>';
   }).join('');

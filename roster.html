@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>角色資料 — DN Helper</title>
-<link rel="stylesheet" href="style.css?v=202608230033">
+<link rel="stylesheet" href="style.css?v=202608292217">
 <style>
   td.gear select{padding:3px 2px;font-size:14px}
   td.gear input{width:44px;padding:3px 4px;font-size:14px}
@@ -116,7 +116,7 @@
 
 </div>
 
-<script src="shared.js?v=202608230033"></script>
+<script src="shared.js?v=202608292217"></script>
 <script>
 /* ---------- 初始化 ---------- */
 document.getElementById('nav').innerHTML = navBar('roster.html','SEA 經典服 · PC');
@@ -251,7 +251,7 @@ function onRoster(e, quiet){
   const num=()=>Math.max(0,+t.value||0);
 
   if(a==='pactive') p.active=t.checked;
-  else if(a==='delp'){ if(!confirm('刪除「'+p.name+'」？')) return; DB.people=DB.people.filter(x=>x!==p); }
+  else if(a==='delp'){ if(!confirm('刪除「'+p.name+'」？（會同步給全隊）')) return; deletePerson(p); }
   else if(a==='addc') return addChar(p.id);
   else if(!c) return;
   else if(a==='cactive') c.active=t.checked;
@@ -282,7 +282,7 @@ function addChar(pid){
 function addPerson(){
   const inp=document.getElementById('newPerson');
   const name=inp.value.trim(); if(!name) return inp.focus();
-  DB.people.push({id:nid(), name, active:true, free:true, potion:1, chars:[]});
+  DB.people.push({id:nid(), name, active:true, free:true, potion:1, t:nowMs(), chars:[]});
   inp.value=''; saveDB(); renderRoster();
 }
 

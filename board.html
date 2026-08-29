@@ -179,8 +179,8 @@ td.drop.no{opacity:.35}
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer"><button class="x" onclick="closeDrawer()">關閉</button><div id="dbody"></div></aside>
 
-<script src="shared.js?v=202608230033"></script>
-<script src="lineup.js?v=202608230033"></script>
+<script src="shared.js?v=202608292217"></script>
+<script src="lineup.js?v=202608292217"></script>
 <script>
 /* ---------------- 狀態 ---------------- */
 let filter = 'open';        // open = 只看這週還沒打完的副本
@@ -188,7 +188,7 @@ let openDun = null;
 
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
 document.getElementById('nav').innerHTML =
-  [['board.html','排班'],['roster.html','角色'],['raid.html','舊版分團'],['index.html','深淵']]
+  [['board.html','排班'],['tasks.html','板子'],['roster.html','角色'],['index.html','深淵']]
   .map(x=>'<a href="'+x[0]+'"'+(x[0]==='board.html'?' class="on"':'')+'>'+x[1]+'</a>').join('');
 
 function setFilter(f){ filter=f; draw(); }

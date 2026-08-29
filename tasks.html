@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>板子任務 — DN Helper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* 板子任務分配：每隻角色每週五場，指定每場要換什麼道具。
+   視覺跟排班板同一套：炭灰＋骨白，飽和色只給資料。 */
+:root{
+  --ground:#15151a; --surface:#1d1d24; --raised:#26262f; --rule:#34343f;
+  --ink:#eceaf2; --muted:#8d8a99; --bone:#e3d9c2; --done:#575c68;
+  --fire:#ff7a45; --water:#45b8ff; --alert:#ff4d4d;
+  --ui:"Archivo Narrow","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --num:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--ui);font-size:15px}
+body{padding-bottom:30vh}
+a{color:var(--bone)}
+:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
+
+.top{position:sticky;top:0;z-index:30;background:var(--ground);
+     border-bottom:1px solid var(--rule);padding:14px 22px 12px}
+.top-row{display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.left{font-family:var(--num);font-size:40px;font-weight:600;line-height:1;color:var(--bone)}
+.left small{font-family:var(--ui);font-size:15px;font-weight:600;color:var(--muted);margin-left:10px}
+.week{font-size:14px;color:var(--muted)}
+.grow{flex:1}
+nav{display:flex;gap:2px}
+nav a{padding:7px 14px;text-decoration:none;color:var(--muted);font-size:15px;
+      font-weight:600;border-bottom:2px solid transparent}
+nav a:hover{color:var(--ink)}
+nav a.on{color:var(--bone);border-bottom-color:var(--bone)}
+button{font-family:var(--ui);font-size:14px;font-weight:600;background:transparent;
+       color:var(--muted);border:1px solid var(--rule);padding:6px 13px;cursor:pointer;border-radius:3px}
+button:hover{color:var(--ink);border-color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--done);display:inline-block;margin-right:7px}
+.dot.live{background:var(--bone)} .dot.busy{background:var(--water)} .dot.dirty{background:var(--fire)}
+
+/* 道具統計列 */
+.totals{display:flex;gap:10px;flex-wrap:wrap;padding:14px 22px 0}
+.tot{border:1px solid var(--rule);border-radius:3px;padding:8px 13px;min-width:96px}
+.tot b{display:block;font-size:14px;font-weight:600}
+.tot .n{font-family:var(--num);font-size:20px;color:var(--bone)}
+.tot .n small{font-size:12px;color:var(--muted)}
+
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:14px}
+th{font-weight:600;font-size:14px;color:var(--muted);text-align:left;
+   padding:9px 12px;border-bottom:1px solid var(--rule)}
+td{border-bottom:1px solid #232329;padding:7px 12px;vertical-align:middle}
+tr:hover td{background:#1a1a20}
+.who{white-space:nowrap}
+.who b{font-weight:600}
+.who .p{color:var(--muted);font-size:12px;margin-right:6px}
+.runcell{white-space:nowrap}
+select{background:var(--surface);color:var(--ink);border:1px solid var(--rule);
+       border-radius:3px;padding:5px 6px;font-family:var(--ui);font-size:14px}
+select.empty{color:var(--muted)}
+select.done{color:var(--done);text-decoration:line-through;border-color:#2a2a33;background:transparent}
+.chk{width:17px;height:17px;accent-color:#e3d9c2;cursor:pointer;vertical-align:middle;margin-left:6px}
+.prog{font-family:var(--num);font-size:13px;color:var(--muted);text-align:right;white-space:nowrap}
+.prog b{color:var(--bone)}
+.foot{padding:16px 22px;color:var(--muted);font-size:13px;line-height:1.8}
+.wrapx{padding:0 22px}
+.tblwrap{overflow-x:auto}
+@media(max-width:900px){ .left{font-size:30px} }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="top-row">
+    <span class="brand">DN Helper</span>
+    <div><div class="left" id="left">—</div></div>
+    <div class="week" id="week"></div>
+    <span class="grow"></span>
+    <nav id="nav"></nav>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap">
+    <button onclick="Sync.pull().then(draw)"><span class="dot" id="sdot"></span><span id="stxt">同步</span></button>
+    <button onclick="clearWeekBoard()">清空本週分配</button>
+    <span class="week" id="hint">每隻角色每週 5 場：先選每場要換什麼，打完勾右邊的框</span>
+  </div>
+</div>
+
+<div class="totals" id="totals"></div>
+<div class="wrapx"><div class="tblwrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></div>
+<div class="foot" id="foot"></div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById('nav').innerHTML =
+  [['board.html','排班'],['tasks.html','板子'],['roster.html','角色'],['index.html','深淵']]
+  .map(x=>'<a href="'+x[0]+'"'+(x[0]==='tasks.html'?' class="on"':'')+'>'+x[1]+'</a>').join('');
+
+const WD=['週日','週一','週二','週三','週四','週五','週六'];
+
+function draw(){
+  const chars=allChars(true);
+  // 統計：每種道具排了幾場、完成幾場
+  const tot={}; BOARD_ITEMS.forEach(k=>tot[k]={plan:0,done:0});
+  let planned=0, done=0;
+  chars.forEach(function(r){
+    const e=boardOf(r.c.id);
+    e.v.forEach(function(item,i){
+      if(!item) return;
+      planned++;
+      if(tot[item]) tot[item].plan++;
+      if(e.d[i]){ done++; if(tot[item]) tot[item].done++; }
+    });
+  });
+  const totalRuns=chars.length*BOARD_RUNS;
+
+  document.getElementById('left').innerHTML=(totalRuns-done)+'<small>場沒打</small>';
+  document.getElementById('week').textContent=
+    curWeek()+' 起 · 每'+WD[DB.cfg.resetDay]+'重置 · '+chars.length+' 隻角色 × '+BOARD_RUNS+' 場 = '+totalRuns+' 場';
+
+  document.getElementById('totals').innerHTML=BOARD_ITEMS.map(function(k){
+    const t=tot[k];
+    return '<div class="tot"><b>'+esc(k)+'</b><span class="n">'+t.done
+      +'<small> / '+t.plan+' 場</small></span></div>';
+  }).join('');
+
+  document.getElementById('thead').innerHTML=
+    '<tr><th>成員 · 角色</th>'+Array.from({length:BOARD_RUNS},(_,i)=>'<th>第 '+(i+1)+' 場</th>').join('')
+    +'<th style="text-align:right">完成</th></tr>';
+
+  document.getElementById('tbody').innerHTML=chars.map(function(r){
+    const e=boardOf(r.c.id);
+    const cells=e.v.map(function(item,i){
+      const opts='<option value="">—</option>'
+        + BOARD_ITEMS.map(k=>'<option'+(k===item?' selected':'')+'>'+esc(k)+'</option>').join('');
+      return '<td class="runcell">'
+        +'<select class="'+(item?(e.d[i]?'done':''):'empty')+'" data-c="'+r.c.id+'" data-i="'+i+'">'+opts+'</select>'
+        +(item?'<input type="checkbox" class="chk" '+(e.d[i]?'checked':'')
+              +' data-dc="'+r.c.id+'" data-di="'+i+'" title="打完了">':'')
+        +'</td>';
+    }).join('');
+    const n=e.d.filter((x,i)=>x&&e.v[i]).length;
+    return '<tr><td class="who"><span class="p">'+esc(r.p.name)+'</span><b>'+esc(charLabel(r.p,r.c))+'</b></td>'
+      +cells+'<td class="prog"><b>'+n+'</b>/'+BOARD_RUNS+'</td></tr>';
+  }).join('');
+
+  document.getElementById('foot').innerHTML=
+    '道具清單固定是：'+BOARD_ITEMS.join('、')+'。'
+    +'選「—」代表那場還沒決定要換什麼；上面的統計是全隊合計（完成 / 已排）。'
+    +'紀錄跟通關打勾一樣按週存，每'+WD[DB.cfg.resetDay]+'自動翻新，會同步給全隊。';
+}
+
+document.getElementById('tbody').addEventListener('change', function(e){
+  const t=e.target;
+  if(t.dataset.c!==undefined && t.dataset.i!==undefined && t.tagName==='SELECT'){
+    setBoardItem(t.dataset.c, +t.dataset.i, t.value);
+    draw(); return;
+  }
+  if(t.dataset.dc!==undefined){
+    setBoardDone(t.dataset.dc, +t.dataset.di, t.checked);
+    draw();
+  }
+});
+
+function clearWeekBoard(){
+  if(!confirm('清空本週所有人的板子分配？')) return;
+  const w=curWeek();
+  DB.board[w]=DB.board[w]||{};
+  allChars(true).forEach(function(r){
+    DB.board[w][r.c.id]={v:Array(BOARD_RUNS).fill(''), d:Array(BOARD_RUNS).fill(false), t:nowMs()};
+  });
+  saveDB(); draw();
+}
+
+Sync.onChange(function(st){
+  const dot=document.getElementById('sdot'), txt=document.getElementById('stxt');
+  if(!dot) return;
+  dot.className='dot'+(st.busy?' busy':st.dirty?' dirty':st.ok?' live':'');
+  txt.textContent = st.busy?'同步中':st.dirty?'未上傳':st.ok?'已同步':'未設定';
+});
+if(Sync.ready()){ Sync.pull(true).then(draw); Sync.startPolling(Sync.status().canWrite?60:240); }
+window.onSynced=draw;
+
+draw();
+</script>
+</body>
+</html>
