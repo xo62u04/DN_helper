@@ -62,7 +62,10 @@ select{background:var(--surface);color:var(--ink);border:1px solid var(--rule);
        border-radius:3px;padding:4px 6px;font-family:var(--ui);font-size:14px}
 select.empty{color:var(--muted)}
 .chk{width:17px;height:17px;accent-color:#e3d9c2;cursor:pointer;vertical-align:middle}
-.share{color:var(--water);font-size:12px}
+.shbtn{font-size:12.5px;padding:2px 8px;margin:1px 2px 1px 0;border:1px solid var(--rule);
+       border-radius:3px;background:transparent;color:var(--muted);cursor:pointer}
+.shbtn.on{color:var(--water);border-color:var(--water)}
+.shbtn:hover{color:var(--ink)}
 
 /* 統計卡 */
 .totals{display:flex;gap:10px;flex-wrap:wrap;padding:12px 22px 0}
@@ -99,7 +102,7 @@ select.empty{color:var(--muted)}
   <div style="display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap">
     <button onclick="Sync.pull().then(draw)"><span class="dot" id="sdot"></span><span id="stxt">同步</span></button>
     <button onclick="clearWeekBoard()">清空本週板子</button>
-    <span class="week">獎勵選「空」＝沒用的板子；「給誰打」空著＝自己打</span>
+    <span class="week">獎勵選「空」＝沒用；點名字把板子分享出去（一張最多 3 人，一起打大家都拿）</span>
   </div>
 </div>
 
@@ -107,7 +110,7 @@ select.empty{color:var(--muted)}
 
 <h2>板子庫存（每人 6 張）</h2>
 <div class="wrapx"><div class="tblwrap"><table>
-  <thead><tr><th>持有人</th><th></th><th>獎勵</th><th>條件</th><th>副本</th><th>給誰打</th><th>破了</th></tr></thead>
+  <thead><tr><th>持有人</th><th></th><th>獎勵</th><th>條件</th><th>副本</th><th>分享給（最多 3 人）</th><th>破了</th></tr></thead>
   <tbody id="tbody"></tbody>
 </table></div></div>
 
@@ -137,8 +140,10 @@ function draw(){
       if(!b.item) return;              // 空的＝沒用
       usable++;
       if(b.done) doneN++;
-      const who = b.to && load[b.to] ? b.to : p.id;
-      if(load[who]){ load[who].n++; if(b.done) load[who].done++; }
+      // 持有人自己吃一份，分享到的每個人也各吃一份（各佔各的每週 6 張額度）
+      [p.id].concat(b.sh||[]).forEach(function(who){
+        if(load[who]){ load[who].n++; if(b.done) load[who].done++; }
+      });
     });
   });
 
@@ -149,7 +154,9 @@ function draw(){
   // 統計：各道具 + 每人負擔（上限 6）
   const tot={}; BOARD_ITEMS.forEach(k=>tot[k]={n:0,done:0});
   ps.forEach(p=>boardOf(p.id).s.forEach(b=>{
-    if(b.item&&tot[b.item]){ tot[b.item].n++; if(b.done) tot[b.item].done++; }
+    if(!b.item||!tot[b.item]) return;
+    const copies=1+((b.sh||[]).length);
+    tot[b.item].n+=copies; if(b.done) tot[b.item].done+=copies;
   }));
   document.getElementById('totals').innerHTML =
     BOARD_ITEMS.filter(k=>tot[k].n).map(k=>
@@ -162,8 +169,11 @@ function draw(){
       }).join('');
 
   // 庫存表
-  const whoOpts = (sel,self) => '<option value="">自己</option>'
-    + ps.filter(p=>p.id!==self).map(p=>'<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+'</option>').join('');
+  const shareBtns = (b,self,pid,i) => ps.filter(p=>p.id!==self).map(function(p){
+    const on=(b.sh||[]).indexOf(p.id)>=0;
+    return '<button class="shbtn'+(on?' on':'')+'" data-p="'+pid+'" data-i="'+i+'" data-sh="'+p.id+'">'
+      +esc(p.name)+'</button>';
+  }).join('');
   document.getElementById('tbody').innerHTML = ps.map(function(p){
     const e=boardOf(p.id);
     return e.s.map(function(b,i){
@@ -185,8 +195,7 @@ function draw(){
               +'<option value="">—</option>'
               +BOARD_DUNS.map(k=>'<option'+(k===b.dun?' selected':'')+'>'+esc(k)+'</option>').join('')
               +'</select></td>'
-            +'<td><select data-p="'+p.id+'" data-i="'+i+'" data-f="to">'+whoOpts(b.to,p.id)+'</select>'
-              +(b.to?' <span class="share">分享</span>':'')+'</td>'
+            +'<td>'+shareBtns(b,p.id,p.id,i)+'</td>'
             +'<td><input type="checkbox" class="chk" '+(b.done?'checked':'')
               +' data-p="'+p.id+'" data-i="'+i+'" data-f="done"></td>')
         +'</tr>';
@@ -205,9 +214,9 @@ function draw(){
     const list=byDun[d];
     return '<div class="run"><h3>'+esc(d)+'<span>'+list.length+' 張</span></h3>'
       + list.map(function(x){
-          const assignee = x.b.to ? (people().find(p=>p.id===x.b.to)||{}).name : null;
+          const names=(x.b.sh||[]).map(id=>(people().find(p=>p.id===id)||{}).name).filter(Boolean);
           return '<div class="b"><b>'+esc(x.b.item)+'</b> · '+esc(x.owner.name)+'的'
-            +(assignee?'，給 <b>'+esc(assignee)+'</b> 打':'')
+            +(names.length?'，分享給 <b>'+esc(names.join('、'))+'</b>':'')
             +(x.b.cond==='timed'?' <span class="timed">限時</span>':'')+'</div>';
         }).join('')
       + '</div>';
@@ -215,18 +224,32 @@ function draw(){
 
   document.getElementById('foot').innerHTML=
     '流程：每週刷新後，各自把 6 張板子的獎勵和條件填進來（沒用的選「空」）。'
-    +'不順路或自己打不了的，用「給誰打」分享出去 —— 每個人一週最多破 6 張，超過會標紅。'
+    +'一張板子可以分享給最多 3 個隊友，同一場一起打、每個人都拿獎勵，但各佔各的每週 6 張額度 —— 超過 6 會標紅。'
     +'下面「照副本看」把還沒破的板子照副本整理好，出發前看一眼，能順路的一次帶掉。'
     +'每'+WD[DB.cfg.resetDay]+'自動翻新，改動即時同步給全隊。';
 }
 
+document.getElementById('tbody').addEventListener('click', function(e){
+  const b=e.target.closest('.shbtn'); if(!b) return;
+  const pid=b.dataset.p, i=+b.dataset.i, who=b.dataset.sh;
+  const slot=boardOf(pid).s[i];
+  const sh=(slot.sh||[]).slice();
+  const at=sh.indexOf(who);
+  if(at>=0) sh.splice(at,1);
+  else{
+    if(sh.length>=BOARD_SHARE_MAX){ alert('一張板子最多分享給 '+BOARD_SHARE_MAX+' 個人。'); return; }
+    sh.push(who);
+  }
+  setBoardSlot(pid,i,{sh:sh});
+  draw();
+});
 document.getElementById('tbody').addEventListener('change', function(e){
   const t=e.target, pid=t.dataset.p, i=+t.dataset.i, f=t.dataset.f;
   if(!pid||f===undefined) return;
   if(f==='done') setBoardSlot(pid,i,{done:t.checked});
   else if(f==='item'){
     const patch={item:t.value};
-    if(!t.value) Object.assign(patch,{dun:'',to:'',done:false,cond:'once'});   // 改回空的順便清乾淨
+    if(!t.value) Object.assign(patch,{dun:'',sh:[],done:false,cond:'once'});   // 改回空的順便清乾淨
     setBoardSlot(pid,i,patch);
   }
   else setBoardSlot(pid,i,{[f]:t.value});

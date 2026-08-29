@@ -72,7 +72,7 @@ const defRole = n => HEALER_JOBS.indexOf(n)>=0 ? '補師'
                     : TANK_JOBS.indexOf(n)>=0   ? '坦' : '輸出';
 
 /* 一次性資料修正。每加一條就把 MIGV 加一，舊存檔載入時會補跑。 */
-const MIGV = 3;
+const MIGV = 4;
 // 把 from 這本的打勾紀錄搬到 to 這本（逐格比時間，跟平常的合併規則一致）
 function moveClears(s, from, to){
   const suf='|'+from;
@@ -135,6 +135,12 @@ function migrate(s){
       }
     });
   }
+  // v4：重置日是週六，不是我當初猜的週四。只動還停在舊預設值的存檔，
+  // 有人自己改過別的日子就尊重他
+  if(from < 4){
+    s.cfg = s.cfg||{};
+    if(s.cfg.resetDay===4 || s.cfg.resetDay==null) s.cfg.resetDay=6;
+  }
   s.migv = MIGV;
   return s;
 }
@@ -183,7 +189,7 @@ function defaultDB(){
     gear:{ tiers:[{k:'50S',v:100},{k:'50L',v:130},{k:'60B',v:170},{k:'60A',v:210},{k:'70A',v:260}],
            wPer:12, aPer:5 },
     cfg:{ mode:'save', teamSize:4, minCarry:2, autoFill:true, balance:true,
-          resetDay:4, useFd:true, useCrit:true, sameElem:true,
+          resetDay:6, useFd:true, useCrit:true, sameElem:true,
           critDmg:200, needHealer:true, needTank:true },
     meta:{ t:0 }
   };
@@ -446,7 +452,8 @@ function coefOf(c){
 const effPowerOf = c => Math.round(powerOf(c) * coefOf(c));
 
 /* ---------------- 板子（每人每週 6 張，可分享） ---------------- */
-const blankSlot = () => ({item:'', cond:'once', dun:'', to:'', done:false});
+const BOARD_SHARE_MAX = 3;    // 一張板子最多分享給 3 個人（整團一起吃）
+const blankSlot = () => ({item:'', cond:'once', dun:'', sh:[], done:false});
 function boardOf(pid, week){
   const w=week||curWeek();
   DB.board=DB.board||{}; DB.board[w]=DB.board[w]||{};
@@ -455,6 +462,11 @@ function boardOf(pid, week){
     e=DB.board[w][pid]={s:Array.from({length:BOARD_SLOTS}, blankSlot), t:(e&&e.t)||0};
   }
   while(e.s.length<BOARD_SLOTS) e.s.push(blankSlot());
+  e.s.forEach(function(b){
+    // 上一版是單人分享（to），升級成多人（sh，上限 3）
+    if(!Array.isArray(b.sh)) b.sh = b.to ? [b.to] : [];
+    delete b.to;
+  });
   return e;
 }
 function setBoardSlot(pid, i, patch){
