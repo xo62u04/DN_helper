@@ -8,8 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-/* 板子任務分配：每隻角色每週五場，指定每場要換什麼道具。
-   視覺跟排班板同一套：炭灰＋骨白，飽和色只給資料。 */
+/* 板子分配：每人每週刷 6 張，各有條件/獎勵，可以分享給別人打。
+   上半是每個人的板子庫存，下半照副本彙整——排副本行程時看一眼就知道
+   這趟能順便破掉哪些板子。 */
 :root{
   --ground:#15151a; --surface:#1d1d24; --raised:#26262f; --rule:#34343f;
   --ink:#eceaf2; --muted:#8d8a99; --bone:#e3d9c2; --done:#575c68;
@@ -42,32 +43,46 @@ button:hover{color:var(--ink);border-color:var(--muted)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--done);display:inline-block;margin-right:7px}
 .dot.live{background:var(--bone)} .dot.busy{background:var(--water)} .dot.dirty{background:var(--fire)}
 
-/* 道具統計列 */
-.totals{display:flex;gap:10px;flex-wrap:wrap;padding:14px 22px 0}
-.tot{border:1px solid var(--rule);border-radius:3px;padding:8px 13px;min-width:96px}
-.tot b{display:block;font-size:14px;font-weight:600}
-.tot .n{font-family:var(--num);font-size:20px;color:var(--bone)}
-.tot .n small{font-size:12px;color:var(--muted)}
-
-table{width:100%;border-collapse:collapse;font-size:14px;margin-top:14px}
-th{font-weight:600;font-size:14px;color:var(--muted);text-align:left;
-   padding:9px 12px;border-bottom:1px solid var(--rule)}
-td{border-bottom:1px solid #232329;padding:7px 12px;vertical-align:middle}
-tr:hover td{background:#1a1a20}
-.who{white-space:nowrap}
-.who b{font-weight:600}
-.who .p{color:var(--muted);font-size:12px;margin-right:6px}
-.runcell{white-space:nowrap}
-select{background:var(--surface);color:var(--ink);border:1px solid var(--rule);
-       border-radius:3px;padding:5px 6px;font-family:var(--ui);font-size:14px}
-select.empty{color:var(--muted)}
-select.done{color:var(--done);text-decoration:line-through;border-color:#2a2a33;background:transparent}
-.chk{width:17px;height:17px;accent-color:#e3d9c2;cursor:pointer;vertical-align:middle;margin-left:6px}
-.prog{font-family:var(--num);font-size:13px;color:var(--muted);text-align:right;white-space:nowrap}
-.prog b{color:var(--bone)}
-.foot{padding:16px 22px;color:var(--muted);font-size:13px;line-height:1.8}
+h2{font-size:16px;font-weight:600;color:var(--muted);margin:22px 0 8px;padding:0 22px}
 .wrapx{padding:0 22px}
 .tblwrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-weight:600;font-size:13.5px;color:var(--muted);text-align:left;
+   padding:8px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
+td{border-bottom:1px solid #232329;padding:5px 10px;vertical-align:middle}
+tr:hover td{background:#1a1a20}
+tr.first td{border-top:1px solid var(--rule)}
+tr.trash td{opacity:.35}
+tr.done td{opacity:.5}
+tr.done .cond{text-decoration:line-through}
+.owner{white-space:nowrap;font-weight:600;vertical-align:top;padding-top:10px}
+.owner .quota{display:block;font-family:var(--num);font-size:11px;color:var(--muted);margin-top:2px}
+.idx{width:30px;font-family:var(--num);font-size:12px;color:var(--muted)}
+select{background:var(--surface);color:var(--ink);border:1px solid var(--rule);
+       border-radius:3px;padding:4px 6px;font-family:var(--ui);font-size:14px}
+select.empty{color:var(--muted)}
+.chk{width:17px;height:17px;accent-color:#e3d9c2;cursor:pointer;vertical-align:middle}
+.share{color:var(--water);font-size:12px}
+
+/* 統計卡 */
+.totals{display:flex;gap:10px;flex-wrap:wrap;padding:12px 22px 0}
+.tot{border:1px solid var(--rule);border-radius:3px;padding:7px 12px;min-width:92px}
+.tot b{display:block;font-size:13.5px;font-weight:600}
+.tot .n{font-family:var(--num);font-size:19px;color:var(--bone)}
+.tot .n small{font-size:12px;color:var(--muted)}
+.tot.load b{color:var(--muted)}
+.tot.load.over{border-color:var(--alert)}
+.tot.load.over .n{color:var(--alert)}
+
+/* 照副本彙整 */
+.byrun{padding:0 22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.run{border:1px solid var(--rule);border-radius:3px;padding:10px 12px}
+.run h3{margin:0 0 6px;font-size:15px;font-weight:600;display:flex;justify-content:space-between}
+.run h3 span{font-family:var(--num);font-size:12px;color:var(--muted)}
+.run .b{font-size:13.5px;color:var(--muted);padding:2px 0;line-height:1.5}
+.run .b b{color:var(--ink);font-weight:600}
+.run .b .timed{color:var(--fire);font-size:12px}
+.foot{padding:16px 22px;color:var(--muted);font-size:13px;line-height:1.8}
 @media(max-width:900px){ .left{font-size:30px} }
 </style>
 </head>
@@ -83,13 +98,22 @@ select.done{color:var(--done);text-decoration:line-through;border-color:#2a2a33;
   </div>
   <div style="display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap">
     <button onclick="Sync.pull().then(draw)"><span class="dot" id="sdot"></span><span id="stxt">同步</span></button>
-    <button onclick="clearWeekBoard()">清空本週分配</button>
-    <span class="week" id="hint">每隻角色每週 5 場：先選每場要換什麼，打完勾右邊的框</span>
+    <button onclick="clearWeekBoard()">清空本週板子</button>
+    <span class="week">獎勵選「空」＝沒用的板子；「給誰打」空著＝自己打</span>
   </div>
 </div>
 
 <div class="totals" id="totals"></div>
-<div class="wrapx"><div class="tblwrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></div>
+
+<h2>板子庫存（每人 6 張）</h2>
+<div class="wrapx"><div class="tblwrap"><table>
+  <thead><tr><th>持有人</th><th></th><th>獎勵</th><th>條件</th><th>副本</th><th>給誰打</th><th>破了</th></tr></thead>
+  <tbody id="tbody"></tbody>
+</table></div></div>
+
+<h2>照副本看 —— 這趟能順便破哪些板子</h2>
+<div class="byrun" id="byrun"></div>
+
 <div class="foot" id="foot"></div>
 
 <script src="shared.js"></script>
@@ -99,78 +123,121 @@ document.getElementById('nav').innerHTML =
   .map(x=>'<a href="'+x[0]+'"'+(x[0]==='tasks.html'?' class="on"':'')+'>'+x[1]+'</a>').join('');
 
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
+const people = () => DB.people.filter(p=>p.active);
+const condLabel = c => c==='timed' ? '限時通關' : '通關一次';
 
 function draw(){
-  const chars=allChars(true);
-  // 統計：每種道具排了幾場、完成幾場
-  const tot={}; BOARD_ITEMS.forEach(k=>tot[k]={plan:0,done:0});
-  let planned=0, done=0;
-  chars.forEach(function(r){
-    const e=boardOf(r.c.id);
-    e.v.forEach(function(item,i){
-      if(!item) return;
-      planned++;
-      if(tot[item]) tot[item].plan++;
-      if(e.d[i]){ done++; if(tot[item]) tot[item].done++; }
+  const ps=people();
+  let usable=0, doneN=0;
+  const load={};                       // 每個人被分到幾張（to 空＝持有人自己）
+  ps.forEach(p=>load[p.id]={name:p.name, n:0, done:0});
+
+  ps.forEach(function(p){
+    boardOf(p.id).s.forEach(function(b){
+      if(!b.item) return;              // 空的＝沒用
+      usable++;
+      if(b.done) doneN++;
+      const who = b.to && load[b.to] ? b.to : p.id;
+      if(load[who]){ load[who].n++; if(b.done) load[who].done++; }
     });
   });
-  const totalRuns=chars.length*BOARD_RUNS;
 
-  document.getElementById('left').innerHTML=(totalRuns-done)+'<small>場沒打</small>';
+  document.getElementById('left').innerHTML=(usable-doneN)+'<small>張沒破</small>';
   document.getElementById('week').textContent=
-    curWeek()+' 起 · 每'+WD[DB.cfg.resetDay]+'重置 · '+chars.length+' 隻角色 × '+BOARD_RUNS+' 場 = '+totalRuns+' 場';
+    curWeek()+' 起 · 每'+WD[DB.cfg.resetDay]+'重置 · 有用的板子 '+usable+' 張、已破 '+doneN;
 
-  document.getElementById('totals').innerHTML=BOARD_ITEMS.map(function(k){
-    const t=tot[k];
-    return '<div class="tot"><b>'+esc(k)+'</b><span class="n">'+t.done
-      +'<small> / '+t.plan+' 場</small></span></div>';
-  }).join('');
+  // 統計：各道具 + 每人負擔（上限 6）
+  const tot={}; BOARD_ITEMS.forEach(k=>tot[k]={n:0,done:0});
+  ps.forEach(p=>boardOf(p.id).s.forEach(b=>{
+    if(b.item&&tot[b.item]){ tot[b.item].n++; if(b.done) tot[b.item].done++; }
+  }));
+  document.getElementById('totals').innerHTML =
+    BOARD_ITEMS.filter(k=>tot[k].n).map(k=>
+      '<div class="tot"><b>'+esc(k)+'</b><span class="n">'+tot[k].done+'<small> / '+tot[k].n+'</small></span></div>'
+    ).join('')
+    + ps.map(p=>{
+        const l=load[p.id];
+        return '<div class="tot load'+(l.n>BOARD_SLOTS?' over':'')+'"><b>'+esc(p.name)+' 要打</b>'
+          +'<span class="n">'+l.done+'<small> / '+l.n+(l.n>BOARD_SLOTS?' 超過6!':'')+'</small></span></div>';
+      }).join('');
 
-  document.getElementById('thead').innerHTML=
-    '<tr><th>成員 · 角色</th>'+Array.from({length:BOARD_RUNS},(_,i)=>'<th>第 '+(i+1)+' 場</th>').join('')
-    +'<th style="text-align:right">完成</th></tr>';
-
-  document.getElementById('tbody').innerHTML=chars.map(function(r){
-    const e=boardOf(r.c.id);
-    const cells=e.v.map(function(item,i){
-      const opts='<option value="">—</option>'
-        + BOARD_ITEMS.map(k=>'<option'+(k===item?' selected':'')+'>'+esc(k)+'</option>').join('');
-      return '<td class="runcell">'
-        +'<select class="'+(item?(e.d[i]?'done':''):'empty')+'" data-c="'+r.c.id+'" data-i="'+i+'">'+opts+'</select>'
-        +(item?'<input type="checkbox" class="chk" '+(e.d[i]?'checked':'')
-              +' data-dc="'+r.c.id+'" data-di="'+i+'" title="打完了">':'')
-        +'</td>';
+  // 庫存表
+  const whoOpts = (sel,self) => '<option value="">自己</option>'
+    + ps.filter(p=>p.id!==self).map(p=>'<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+'</option>').join('');
+  document.getElementById('tbody').innerHTML = ps.map(function(p){
+    const e=boardOf(p.id);
+    return e.s.map(function(b,i){
+      const trash=!b.item;
+      return '<tr class="'+(i===0?'first ':'')+(trash?'trash ':'')+(b.item&&b.done?'done':'')+'">'
+        +(i===0?'<td class="owner" rowspan="'+BOARD_SLOTS+'">'+esc(p.name)
+               +'<span class="quota">刷新 6 張/週</span></td>':'')
+        +'<td class="idx">'+(i+1)+'</td>'
+        +'<td><select class="'+(b.item?'':'empty')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="item">'
+          +'<option value="">空（沒用）</option>'
+          +BOARD_ITEMS.map(k=>'<option'+(k===b.item?' selected':'')+'>'+esc(k)+'</option>').join('')
+          +'</select></td>'
+        +(trash
+          ? '<td colspan="4" style="color:#33333c;font-size:13px">— 沒用的板子 —</td>'
+          : '<td class="cond"><select data-p="'+p.id+'" data-i="'+i+'" data-f="cond">'
+              +BOARD_CONDS.map(c=>'<option value="'+c[0]+'"'+(c[0]===b.cond?' selected':'')+'>'+c[1]+'</option>').join('')
+              +'</select></td>'
+            +'<td><select class="'+(b.dun?'':'empty')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="dun">'
+              +'<option value="">—</option>'
+              +BOARD_DUNS.map(k=>'<option'+(k===b.dun?' selected':'')+'>'+esc(k)+'</option>').join('')
+              +'</select></td>'
+            +'<td><select data-p="'+p.id+'" data-i="'+i+'" data-f="to">'+whoOpts(b.to,p.id)+'</select>'
+              +(b.to?' <span class="share">分享</span>':'')+'</td>'
+            +'<td><input type="checkbox" class="chk" '+(b.done?'checked':'')
+              +' data-p="'+p.id+'" data-i="'+i+'" data-f="done"></td>')
+        +'</tr>';
     }).join('');
-    const n=e.d.filter((x,i)=>x&&e.v[i]).length;
-    return '<tr><td class="who"><span class="p">'+esc(r.p.name)+'</span><b>'+esc(charLabel(r.p,r.c))+'</b></td>'
-      +cells+'<td class="prog"><b>'+n+'</b>/'+BOARD_RUNS+'</td></tr>';
   }).join('');
+
+  // 照副本彙整：還沒破的板子照條件副本分組
+  const byDun={};
+  ps.forEach(function(p){
+    boardOf(p.id).s.forEach(function(b){
+      if(!b.item || b.done || !b.dun) return;
+      (byDun[b.dun]=byDun[b.dun]||[]).push({owner:p, b:b});
+    });
+  });
+  document.getElementById('byrun').innerHTML = BOARD_DUNS.filter(d=>byDun[d]).map(function(d){
+    const list=byDun[d];
+    return '<div class="run"><h3>'+esc(d)+'<span>'+list.length+' 張</span></h3>'
+      + list.map(function(x){
+          const assignee = x.b.to ? (people().find(p=>p.id===x.b.to)||{}).name : null;
+          return '<div class="b"><b>'+esc(x.b.item)+'</b> · '+esc(x.owner.name)+'的'
+            +(assignee?'，給 <b>'+esc(assignee)+'</b> 打':'')
+            +(x.b.cond==='timed'?' <span class="timed">限時</span>':'')+'</div>';
+        }).join('')
+      + '</div>';
+  }).join('') || '<div class="run" style="color:var(--muted)">還沒有待破的板子。把上面每個人刷到的板子填進來，這裡就會照副本整理好。</div>';
 
   document.getElementById('foot').innerHTML=
-    '道具清單固定是：'+BOARD_ITEMS.join('、')+'。'
-    +'選「—」代表那場還沒決定要換什麼；上面的統計是全隊合計（完成 / 已排）。'
-    +'紀錄跟通關打勾一樣按週存，每'+WD[DB.cfg.resetDay]+'自動翻新，會同步給全隊。';
+    '流程：每週刷新後，各自把 6 張板子的獎勵和條件填進來（沒用的選「空」）。'
+    +'不順路或自己打不了的，用「給誰打」分享出去 —— 每個人一週最多破 6 張，超過會標紅。'
+    +'下面「照副本看」把還沒破的板子照副本整理好，出發前看一眼，能順路的一次帶掉。'
+    +'每'+WD[DB.cfg.resetDay]+'自動翻新，改動即時同步給全隊。';
 }
 
 document.getElementById('tbody').addEventListener('change', function(e){
-  const t=e.target;
-  if(t.dataset.c!==undefined && t.dataset.i!==undefined && t.tagName==='SELECT'){
-    setBoardItem(t.dataset.c, +t.dataset.i, t.value);
-    draw(); return;
+  const t=e.target, pid=t.dataset.p, i=+t.dataset.i, f=t.dataset.f;
+  if(!pid||f===undefined) return;
+  if(f==='done') setBoardSlot(pid,i,{done:t.checked});
+  else if(f==='item'){
+    const patch={item:t.value};
+    if(!t.value) Object.assign(patch,{dun:'',to:'',done:false,cond:'once'});   // 改回空的順便清乾淨
+    setBoardSlot(pid,i,patch);
   }
-  if(t.dataset.dc!==undefined){
-    setBoardDone(t.dataset.dc, +t.dataset.di, t.checked);
-    draw();
-  }
+  else setBoardSlot(pid,i,{[f]:t.value});
+  draw();
 });
 
 function clearWeekBoard(){
-  if(!confirm('清空本週所有人的板子分配？')) return;
+  if(!confirm('清空本週所有人的板子？（會同步給全隊）')) return;
   const w=curWeek();
-  DB.board[w]=DB.board[w]||{};
-  allChars(true).forEach(function(r){
-    DB.board[w][r.c.id]={v:Array(BOARD_RUNS).fill(''), d:Array(BOARD_RUNS).fill(false), t:nowMs()};
-  });
+  DB.board[w]={};
+  people().forEach(p=>{ boardOf(p.id).t=nowMs(); });
   saveDB(); draw();
 }
 

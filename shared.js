@@ -22,7 +22,11 @@ const BUFF_RES  = ELEMS.filter(e=>e!=='無').map(e=>'降'+e+'抗');
 const BUFF_NUM  = ['增傷','加三維'].concat(BUFF_RES, ['降爆抗','增加屬攻','增加物攻']);
 const BUFF_FLAG = ['爆擊','破防','回血','護盾','復活','解控','加速'];
 const BOARD_ITEMS = ['懸賞','花冠','刻印飾品','刻印防具','刻印三套件','刻印武器','刻印藥水'];
-const BOARD_RUNS  = 5;        // 每隻角色每週五場
+const BOARD_SLOTS = 6;        // 每人每週刷 6 張板子，也最多破 6 張
+const BOARD_CONDS = [['once','通關一次'],['timed','限時通關']];
+// 板子條件裡的副本跟分團那邊的清單不同（有核心/經典/地獄變體），自成一份
+const BOARD_DUNS  = ['地獄K','海龍','綠龍','沙龍','颱風金','颱風金地獄','海龍核心',
+                     '綠龍經典','沙龍經典','沙龍地獄','綠龍地獄','海龍經典','海龍地獄'];
 const BUFF_OLD  = ['降抗'];          // 舊資料寫過的籠統標籤，還認得但不再提供新增
 const BUFFTAGS  = BUFF_NUM.concat(BUFF_FLAG);
 const isNumBuff = k => BUFF_NUM.indexOf(k)>=0 || BUFF_OLD.indexOf(k)>=0;
@@ -171,7 +175,8 @@ function defaultDB(){
       {key:'desert',  name:'沙龍',        size:8, req:0},
     ],
     removed:[],          // 手動刪掉的副本 key，預設清單不要再把它補回來
-    board:{},            // 板子任務：{ 週期: { charId: {v:[五場的道具], d:[五場打完沒], t:改動時間} } }
+    board:{},            // 板子：{ 週期: { personId: {s:[6張{item,cond,dun,to,done}], t} } }
+                         // item 空字串＝沒用的板子；to＝分享給誰打（空＝自己）
     deleted:[],          // 刪除墓碑 [{name,t}]：沒有這個，刪掉的成員會被雲端同步合併回來
     migv:MIGV,           // 已套用到第幾版的資料修正
     clears:{},   // { 週期起始日: { "charId|dungeonKey": true } }
@@ -440,18 +445,23 @@ function coefOf(c){
 }
 const effPowerOf = c => Math.round(powerOf(c) * coefOf(c));
 
-/* ---------------- 板子任務（每角色每週五場） ---------------- */
-function boardOf(cid, week){
+/* ---------------- 板子（每人每週 6 張，可分享） ---------------- */
+const blankSlot = () => ({item:'', cond:'once', dun:'', to:'', done:false});
+function boardOf(pid, week){
   const w=week||curWeek();
   DB.board=DB.board||{}; DB.board[w]=DB.board[w]||{};
-  let e=DB.board[w][cid];
-  if(!e){ e=DB.board[w][cid]={v:Array(BOARD_RUNS).fill(''), d:Array(BOARD_RUNS).fill(false), t:0}; }
-  while(e.v.length<BOARD_RUNS) e.v.push('');
-  while(e.d.length<BOARD_RUNS) e.d.push(false);
+  let e=DB.board[w][pid];
+  if(!e || !Array.isArray(e.s)){          // 沒有、或第一版的舊格式（v/d）→ 重建
+    e=DB.board[w][pid]={s:Array.from({length:BOARD_SLOTS}, blankSlot), t:(e&&e.t)||0};
+  }
+  while(e.s.length<BOARD_SLOTS) e.s.push(blankSlot());
   return e;
 }
-function setBoardItem(cid, i, item){ const e=boardOf(cid); e.v[i]=item; e.t=nowMs(); saveDB(); }
-function setBoardDone(cid, i, v){ const e=boardOf(cid); e.d[i]=!!v; e.t=nowMs(); saveDB(); }
+function setBoardSlot(pid, i, patch){
+  const e=boardOf(pid);
+  Object.assign(e.s[i], patch);
+  e.t=nowMs(); saveDB();
+}
 
 /* ---------------- 匯出 / 匯入 ---------------- */
 const packChar = c => ({name:c.name, job:c.job, elem:c.elem, carry:c.carry, active:c.active,
