@@ -541,7 +541,7 @@
     }
   ],
   "removed": [],
-  "migv": 3,
+  "migv": 5,
   "clears": {
     "2026-08-13": {},
     "2026-08-15": {
@@ -786,6 +786,484 @@
     },
     "2026-08-29": {}
   },
+  "board": {
+    "2026-08-29": {
+      "i17": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i18": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i19": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i20": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i22": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i23": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i24": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i26": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i27": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i28": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i30": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i31": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i32": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i34": {
+        "v": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "d": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "t": 0
+      },
+      "i16": {
+        "s": [
+          {
+            "item": "懸賞",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
+        ],
+        "t": 1788014707162
+      },
+      "i21": {
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
+        ],
+        "t": 0
+      },
+      "i25": {
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
+        ],
+        "t": 0
+      },
+      "i29": {
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
+        ],
+        "t": 0
+      },
+      "i33": {
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
+        ],
+        "t": 0
+      }
+    }
+  },
+  "deleted": [],
   "gear": {
     "tiers": [
       {
@@ -819,6 +1297,7 @@
     "autoFill": true,
     "balance": true,
     "resetDay": 6,
+    "resetHour": 9,
     "useFd": true,
     "useCrit": false,
     "sameElem": true,
