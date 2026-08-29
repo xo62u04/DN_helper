@@ -55,40 +55,52 @@ button:hover{color:var(--ink);border-color:var(--sub)}
 .tchip .n{font-family:var(--num);color:var(--bone);margin-left:7px}
 .tlabel{font-size:13px;color:var(--sub)}
 
-/* ---- 每人一段 ---- */
-section{padding:6px 22px 0}
-.phead{display:flex;align-items:baseline;gap:14px;margin:16px 0 8px;flex-wrap:wrap}
-.phead h2{margin:0;font-size:18px;font-weight:700}
-.phead .st{font-family:var(--num);font-size:13px;color:var(--sub)}
-.phead .st b{color:var(--bone);font-weight:600}
-.phead .over{color:var(--alert);font-weight:700;font-size:13.5px}
-.cards{display:flex;gap:10px;flex-wrap:wrap}
+/* ---- 一列一個人：左邊名字，右邊 6 格 ---- */
+section{padding:0 22px}
+.prow{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid #24242e}
+.pname{width:92px;flex:none;padding-top:8px}
+.pname h2{margin:0;font-size:17px;font-weight:700}
+.pname .st{display:block;font-family:var(--num);font-size:12px;color:var(--sub);margin-top:4px;line-height:1.6}
+.pname .st b{color:var(--bone);font-weight:600}
+.pname .over{display:block;color:var(--alert);font-weight:700;font-size:12.5px;margin-top:2px}
+.cards{display:flex;gap:8px;flex-wrap:wrap;flex:1}
 
-/* ---- 板子卡 ---- */
-.card{width:250px;border:1px solid var(--rule);border-radius:6px;background:var(--surface);
-      padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-.card.empty{background:transparent;border-style:dashed;justify-content:center;min-height:112px;width:158px}
-.card.empty select{width:100%}
-.card.done{opacity:.45}
+/* ---- 空板：安靜的＋方格，點一下直接彈選單 ---- */
+.slot0{position:relative;width:96px;min-height:96px;border:1px dashed #2e2e3a;border-radius:6px;
+       display:flex;align-items:center;justify-content:center;color:#45454f;font-size:22px;
+       font-weight:300;cursor:pointer;transition:border-color .12s,color .12s}
+.slot0:hover{border-color:var(--sub);color:var(--sub)}
+.slot0 select.ghost{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+
+/* ---- 有料的板子卡 ---- */
+.card{width:236px;border:1px solid #303040;border-radius:6px;background:var(--surface);
+      padding:9px 11px 8px;display:flex;flex-direction:column;gap:6px}
+.card.done{opacity:.42}
 .card.done .iname{text-decoration:line-through}
 .crow{display:flex;align-items:center;gap:8px}
-.iname{font-size:16px;font-weight:700;flex:1}
-select{background:var(--raised);color:var(--ink);border:1px solid var(--rule);
-       border-radius:4px;padding:5px 7px;font-family:var(--ui);font-size:14px;max-width:100%}
-select.small{font-size:12.5px;color:var(--sub);padding:2px 5px;background:transparent}
-/* 一次／限時：兩段切換 */
-.seg{display:inline-flex;border:1px solid var(--rule);border-radius:4px;overflow:hidden;flex:none}
-.seg button{border:0;border-radius:0;padding:4px 10px;font-size:13px;color:var(--sub)}
-.seg button.on{background:var(--raised);color:var(--ink)}
+/* 獎勵名：點名字本身就能改（隱形 select 蓋在上面） */
+.iname{position:relative;font-size:15.5px;font-weight:700;flex:1;cursor:pointer;line-height:1.4}
+.iname:hover{color:var(--bone)}
+.iname select.ghost{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* 控件一律無邊框，靠底線與顏色 */
+select{background:transparent;color:var(--ink);border:0;border-bottom:1px dashed #3a3a46;
+       border-radius:0;padding:2px 2px;font-family:var(--ui);font-size:13.5px;max-width:100%;cursor:pointer}
+select:hover{border-bottom-color:var(--sub)}
+select.unset{color:var(--alert)}
+/* 一次／限時：文字切換 */
+.seg{display:inline-flex;gap:2px;flex:none}
+.seg button{border:0;padding:2px 7px;font-size:13px;color:var(--faint);border-radius:4px}
+.seg button:hover{color:var(--sub)}
+.seg button.on{color:var(--ink);background:var(--raised)}
 .seg button.on.timed{color:var(--fire)}
-/* 分享：點名字 */
-.shrow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-height:26px}
-.shlabel{font-size:12.5px;color:var(--faint)}
-.shbtn{font-size:13px;padding:2px 9px;border-radius:99px}
+/* 分享：小名字膠囊 */
+.shrow{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.shbtn{font-size:12px;padding:1px 8px;border-radius:99px;border-color:#2e2e3a;color:var(--faint)}
+.shbtn:hover{color:var(--sub);border-color:var(--sub)}
 .shbtn.on{color:var(--water);border-color:var(--water)}
 /* 破了 */
-.donebtn{padding:4px 11px;font-size:13.5px;flex:none}
-.donebtn.on{color:var(--ground);background:var(--bone);border-color:var(--bone)}
+.donebtn{padding:3px 10px;font-size:13px;flex:none;border-radius:99px}
+.donebtn.on{color:var(--ground);background:var(--bone);border-color:var(--bone);font-weight:700}
 
 /* ---- 照副本看 ---- */
 h3.sec{font-size:15px;font-weight:700;color:var(--sub);margin:26px 22px 8px;
@@ -103,7 +115,7 @@ h3.sec{font-size:15px;font-weight:700;color:var(--sub);margin:26px 22px 8px;
 .run .b .timed{color:var(--fire);font-size:12.5px;border:1px solid var(--fire);
                border-radius:3px;padding:0 5px;margin-left:5px}
 .foot{padding:18px 22px;color:var(--sub);font-size:13.5px;line-height:1.9}
-@media(max-width:620px){ .card{width:100%} .card.empty{width:100%;min-height:64px} }
+@media(max-width:620px){ .card{width:100%} .prow{flex-direction:column;gap:8px} .pname{width:auto;display:flex;gap:12px;align-items:baseline} }
 </style>
 </head>
 <body>
@@ -140,21 +152,22 @@ document.getElementById('nav').innerHTML =
 const WD=['週日','週一','週二','週三','週四','週五','週六'];
 const people = () => DB.people.filter(p=>p.active);
 
-function itemSelect(pid,i,val,cls){
-  return '<select class="'+(cls||'')+'" data-p="'+pid+'" data-i="'+i+'" data-f="item">'
-    +'<option value="">'+(val?'改成空（作廢）':'空板子 — 刷到什麼？')+'</option>'
+function itemGhost(pid,i,val){
+  return '<select class="ghost" data-p="'+pid+'" data-i="'+i+'" data-f="item">'
+    +'<option value="">'+(val?'作廢（改成空）':'')+'</option>'
     +BOARD_ITEMS.map(k=>'<option'+(k===val?' selected':'')+'>'+esc(k)+'</option>').join('')
     +'</select>';
 }
 
 function card(p,b,i){
   if(!b.item){
-    return '<div class="card empty">'+itemSelect(p.id,i,'')+'</div>';
+    // 空板＝安靜的＋方格；隱形選單蓋滿整格，點哪都直接彈選項
+    return '<div class="slot0" title="登記這張板子">＋'+itemGhost(p.id,i,'')+'</div>';
   }
   const ps=people();
   return '<div class="card'+(b.done?' done':'')+'">'
     +'<div class="crow">'
-      +'<span class="iname">'+esc(b.item)+'</span>'
+      +'<span class="iname" title="點名字改獎勵或作廢">'+esc(b.item)+itemGhost(p.id,i,b.item)+'</span>'
       +'<button class="donebtn'+(b.done?' on':'')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="done">'
         +(b.done?'✓ 破了':'沒破')+'</button>'
     +'</div>'
@@ -164,19 +177,18 @@ function card(p,b,i){
           +'" data-p="'+p.id+'" data-i="'+i+'" data-f="cond" data-v="'+c[0]+'">'
           +(c[0]==='timed'?'限時':'一次')+'</button>').join('')
       +'</span>'
-      +'<select style="flex:1" data-p="'+p.id+'" data-i="'+i+'" data-f="dun">'
-        +'<option value="">選副本…</option>'
+      +'<select style="flex:1" class="'+(b.dun?'':'unset')+'" data-p="'+p.id+'" data-i="'+i+'" data-f="dun">'
+        +'<option value="">＋選副本</option>'
         +BOARD_DUNS.map(k=>'<option'+(k===b.dun?' selected':'')+'>'+esc(k)+'</option>').join('')
       +'</select>'
     +'</div>'
-    +'<div class="shrow"><span class="shlabel">分享</span>'
+    +'<div class="shrow">'
       +ps.filter(x=>x.id!==p.id).map(function(x){
         const on=(b.sh||[]).indexOf(x.id)>=0;
         return '<button class="shbtn'+(on?' on':'')+'" data-p="'+p.id+'" data-i="'+i
           +'" data-f="sh" data-v="'+x.id+'">'+esc(x.name)+'</button>';
       }).join('')
     +'</div>'
-    +'<div class="crow">'+itemSelect(p.id,i,b.item,'small')+'</div>'
   +'</div>';
 }
 
@@ -207,16 +219,16 @@ function draw(){
   document.getElementById('totals').innerHTML =
     chips ? '<span class="tlabel">全隊獎勵（含分享的份）</span>'+chips : '';
 
-  document.getElementById('people').innerHTML = ps.map(function(p){
+  document.getElementById('people').innerHTML = '<section>'+ps.map(function(p){
     const e=boardOf(p.id);
     const l=load[p.id];
-    return '<section><div class="phead"><h2>'+esc(p.name)+'</h2>'
-      +'<span class="st">要打 <b>'+l.n+'</b> 張 · 破了 <b>'+l.done+'</b></span>'
-      +(l.n>BOARD_SLOTS?'<span class="over">超過每週 6 張上限</span>':'')
+    return '<div class="prow"><div class="pname"><h2>'+esc(p.name)+'</h2>'
+      +'<span class="st">要打 <b>'+l.n+'</b> 張<br>破了 <b>'+l.done+'</b> 張</span>'
+      +(l.n>BOARD_SLOTS?'<span class="over">超過 6 張</span>':'')
       +'</div><div class="cards">'
       + e.s.map((b,i)=>card(p,b,i)).join('')
-      +'</div></section>';
-  }).join('');
+      +'</div></div>';
+  }).join('')+'</section>';
 
   const byDun={};
   ps.forEach(function(p){
