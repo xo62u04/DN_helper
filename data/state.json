@@ -145,33 +145,6 @@
       ]
     },
     {
-      "name": "梅林",
-      "active": true,
-      "free": true,
-      "potion": 1,
-      "t": 0,
-      "chars": [
-        {
-          "name": "時空",
-          "job": "時空",
-          "elem": "",
-          "carry": true,
-          "active": true,
-          "atk": 0,
-          "crit": 0,
-          "def": 0,
-          "fd": 0,
-          "ea": 0,
-          "mwTier": "60A",
-          "mwEnh": 7,
-          "swTier": "60A",
-          "swEnh": 10,
-          "aTier": "60A",
-          "aEnh": 6
-        }
-      ]
-    },
-    {
       "name": "地瓜",
       "active": true,
       "free": true,
@@ -294,6 +267,33 @@
           "swEnh": 0,
           "aTier": "70A",
           "aEnh": 0
+        }
+      ]
+    },
+    {
+      "name": "梅林",
+      "active": true,
+      "free": true,
+      "potion": 1,
+      "t": 0,
+      "chars": [
+        {
+          "name": "時空",
+          "job": "時空",
+          "elem": "",
+          "carry": true,
+          "active": true,
+          "atk": 0,
+          "crit": 0,
+          "def": 0,
+          "fd": 0,
+          "ea": 0,
+          "mwTier": "60A",
+          "mwEnh": 7,
+          "swTier": "60A",
+          "swEnh": 10,
+          "aTier": "60A",
+          "aEnh": 6
         }
       ]
     }
@@ -783,7 +783,8 @@
         "v": true,
         "t": 1787579879876
       }
-    }
+    },
+    "2026-08-29": {}
   },
   "gear": {
     "tiers": [
