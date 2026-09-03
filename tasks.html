@@ -64,6 +64,8 @@ section{padding:0 22px}
 .pname .st{display:block;font-family:var(--num);font-size:12px;color:var(--sub);margin-top:4px;line-height:1.6}
 .pname .st b{color:var(--bone);font-weight:600}
 .pname .over{display:block;color:var(--alert);font-weight:700;font-size:12.5px;margin-top:2px}
+.allbtn{margin-top:6px;padding:2px 10px;font-size:12.5px;border-radius:99px}
+.allbtn.on{color:var(--ground);background:var(--bone);border-color:var(--bone);font-weight:700}
 .cards{display:flex;gap:8px;flex-wrap:wrap;flex:1}
 
 /* ---- 空板：安靜的＋方格，點一下直接彈選單 ---- */
@@ -233,6 +235,8 @@ function draw(){
       +'<span class="who">'+esc(r.p.name)+'</span>'
       +'<h2>'+esc(charLabel(r.p,r.c))+'</h2>'
       +'<span class="st">登記 <b>'+own+'</b> 張<br>破了 <b>'+dn+'</b> 張</span>'
+      +(own?'<button class="allbtn'+(dn===own?' on':'')+'" data-all="'+r.c.id+'">'
+            +(dn===own?'✓ 全破了':'整排標破')+'</button>':'')
       +'</div><div class="cards">'
       + e.s.map((b,i)=>card(r,b,i)).join('')
       +'</div></div>';
@@ -259,12 +263,21 @@ function draw(){
 
   document.getElementById('foot').innerHTML=
     '每隻角色每週刷 6 張。填法：每張卡選獎勵就算登記了，再點「一次／限時」和副本。'
+    +'打完一輪按名字下面的「整排標破」，這隻角色登記的板子會全部標破（再按一次取消）。'
     +'分享點隊友名字（藍色＝已分享，最多 3 人，一起打大家都拿，各佔各的 6 張額度）。'
     +'打完按「沒破」變「✓ 破了」。每'+WD[DB.cfg.resetDay]+' '+(DB.cfg.resetHour??9)+':00 自動翻新，即時同步全隊。';
 }
 
 document.getElementById('people').addEventListener('click', function(e){
   const t=e.target.closest('button'); if(!t) return;
+  if(t.dataset.all){
+    // 打完一輪：這隻角色已登記的板子整排標破；已經全破就整排取消
+    const cid=t.dataset.all, ee=boardOf(cid);
+    const filled=ee.s.filter(b=>b.item);
+    const allDone=filled.length && filled.every(b=>b.done);
+    ee.s.forEach(b=>{ if(b.item) b.done=!allDone; });
+    ee.t=nowMs(); saveDB(); draw(); return;
+  }
   const pid=t.dataset.p, i=+t.dataset.i, f=t.dataset.f;
   if(!pid||!f) return;
   if(f==='done'){ const b=boardOf(pid).s[i]; setBoardSlot(pid,i,{done:!b.done}); }
