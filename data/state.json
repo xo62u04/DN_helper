@@ -269,33 +269,6 @@
           "aEnh": 0
         }
       ]
-    },
-    {
-      "name": "梅林",
-      "active": true,
-      "free": true,
-      "potion": 1,
-      "t": 0,
-      "chars": [
-        {
-          "name": "時空",
-          "job": "時空",
-          "elem": "",
-          "carry": true,
-          "active": true,
-          "atk": 0,
-          "crit": 0,
-          "def": 0,
-          "fd": 0,
-          "ea": 0,
-          "mwTier": "60A",
-          "mwEnh": 7,
-          "swTier": "60A",
-          "swEnh": 10,
-          "aTier": "60A",
-          "aEnh": 6
-        }
-      ]
     }
   ],
   "jobs": [
@@ -784,228 +757,623 @@
         "t": 1787579879876
       }
     },
-    "2026-08-29": {}
+    "2026-08-29": {
+      "i28|kim_n": {
+        "v": false,
+        "t": 1788442681906
+      }
+    }
   },
   "board": {
     "2026-08-29": {
       "i17": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i18": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i19": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i20": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i22": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i23": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i24": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i26": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i27": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i28": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i30": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i31": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
       "i32": {
-        "v": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
-        "d": [
-          false,
-          false,
-          false,
-          false,
-          false
+        "s": [
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          },
+          {
+            "item": "",
+            "cond": "once",
+            "dun": "",
+            "sh": [],
+            "done": false
+          }
         ],
         "t": 0
       },
@@ -1267,7 +1635,12 @@
       }
     }
   },
-  "deleted": [],
+  "deleted": [
+    {
+      "name": "梅林",
+      "t": 1788019217212
+    }
+  ],
   "gear": {
     "tiers": [
       {
